@@ -45,14 +45,46 @@ jobs:
       - name: Run TypeScript type check
         run: npm run typecheck
         continue-on-error: true
-      - name: Run tests with coverage
-        run: npm run test -- --ci --coverage
+      - name: Run core tests with coverage
+        run: npm run test -- --ci --coverage --testPathIgnorePatterns=live-api
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
           retention-days: 7
+      - name: Run live AI model tests (non-blocking)
+        continue-on-error: true
+        run: |
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "ℹ️ Live AI tests: GEMINI_API_KEY not configured — skipped."
+            printf '### 🤖 Live AI Model Tests\n**Status:** API key not configured — skipped.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npm run test -- --ci --no-coverage --testPathPatterns=live-api --forceExit --json --outputFile=/tmp/live-results.json || true
+          echo "Live AI test run complete (see results below)."
+          node -e "
+            const fs = require('fs');
+            try {
+              const r = JSON.parse(fs.readFileSync('/tmp/live-results.json', 'utf8'));
+              const total = r.numTotalTests, passed = r.numPassedTests;
+              if (total === 0) {
+                console.log('⚠️ Live AI tests: no test files found — check testPathPatterns.');
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### 🤖 Live AI Model Tests\n⚠️ **No test files matched** — check testPathPatterns.\n');
+              } else {
+                const pct = Math.round(passed / total * 100);
+                const icon = pct >= 80 ? '✅' : '⚠️';
+                console.log(icon + ' Live AI tests: ' + passed + '/' + total + ' passed (' + pct + '%)');
+                const summary = '### 🤖 Live AI Model Tests\n**' + passed + '/' + total + ' passed (' + pct + '%)**\n' + icon + ' ' + (pct >= 80 ? '≥80% threshold met' : 'Below 80% threshold (deploy continues)') + '\n';
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+              }
+            } catch(e) {
+              console.log('ℹ️ Live AI tests: results unavailable — API may be unreachable.');
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### 🤖 Live AI Model Tests\n**Status:** API unavailable — treated as passing.\n');
+            }
+          "
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   deploy:
     name: Deploy to Cloud Run

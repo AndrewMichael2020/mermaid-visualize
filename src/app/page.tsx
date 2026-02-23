@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import Header from '@/components/header';
@@ -24,6 +24,21 @@ export default function HomePage() {
   const [diagramCode, setDiagramCode] = useState(defaultDiagram);
   const [theme, setTheme] = useState('light');
   const [isMounted, setIsMounted] = useState(false);
+  const [errorContext, setErrorContext] = useState<{
+    errorMessage: string;
+    aiAttemptExplanation: string;
+  } | null>(null);
+
+  const handleFixStateChange = useCallback(
+    (errorMessage: string | null, aiAttemptExplanation: string | null) => {
+      if (errorMessage !== null) {
+        setErrorContext({ errorMessage, aiAttemptExplanation: aiAttemptExplanation ?? '' });
+      } else {
+        setErrorContext(null);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -57,6 +72,7 @@ export default function HomePage() {
           <DiagramEditor
             code={diagramCode}
             onCodeChange={setDiagramCode}
+            errorContext={errorContext ?? undefined}
           />
         </div>
         <div className="flex flex-1 flex-col lg:w-2/3 min-h-0 h-full">
@@ -65,6 +81,7 @@ export default function HomePage() {
               code={diagramCode}
               theme={theme}
               setTheme={setTheme}
+              onFixStateChange={handleFixStateChange}
             />
           )}
         </div>

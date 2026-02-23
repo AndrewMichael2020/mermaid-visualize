@@ -16,6 +16,15 @@ interface DiagramViewerProps {
   code: string;
   theme: string;
   setTheme: (theme: string) => void;
+  /**
+   * Called whenever the AI-fix state changes so parent components can consume
+   * error context (e.g. to inject it into the Enhance prompt).
+   *
+   * - Both arguments are `null` when the diagram renders successfully.
+   * - `errorMessage` is the detailed render/parse error when AI fix failed.
+   * - `aiAttemptExplanation` is what the fix agent tried (may be empty string).
+   */
+  onFixStateChange?: (errorMessage: string | null, aiAttemptExplanation: string | null) => void;
 }
 
 const darkThemeVariables = {
@@ -29,7 +38,7 @@ const darkThemeVariables = {
     nodeTextColor: '#fff',
 };
 
-export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: DiagramViewerProps) {
+export default function DiagramViewer({ code, theme: selectedTheme, setTheme, onFixStateChange }: DiagramViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +49,11 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
     | { status: 'failed'; fixedCode: string; explanation: string; originalError: string };
 
   const [fixState, setFixState] = useState<FixState>({ status: 'idle' });
+
+  // Keep a ref to the latest callback so the async renderDiagram closure always
+  // calls the current version without needing it in the effect dependency array.
+  const onFixStateChangeRef = useRef(onFixStateChange);
+  onFixStateChangeRef.current = onFixStateChange;
 
   const { toast } = useToast();
   const { resolvedTheme } = useNextTheme();
@@ -73,6 +87,7 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
             if (viewerRef.current) viewerRef.current.innerHTML = svg;
             setError(null);
             setFixState({ status: 'idle' });
+            onFixStateChangeRef.current?.(null, null);
           } catch (e: unknown) {
             const rawErrorMsg = e instanceof Error ? e.message : String(e);
             // Enrich the raw render/parse error with structural analysis
@@ -123,6 +138,7 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
 
       if (!fixedCode) {
         setFixState({ status: 'failed', fixedCode: brokenCode, explanation, originalError: errorMsg });
+        onFixStateChangeRef.current?.(errorMsg, explanation);
         return;
       }
 
@@ -139,8 +155,10 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
         const { svg } = await mermaid.render("mermaid-fix-svg-" + Date.now(), fixedCode);
         if (viewerRef.current) viewerRef.current.innerHTML = svg;
         setFixState({ status: 'fixed', explanation, originalError: errorMsg });
+        onFixStateChangeRef.current?.(null, null);
       } catch {
         setFixState({ status: 'failed', fixedCode, explanation, originalError: errorMsg });
+        onFixStateChangeRef.current?.(errorMsg, explanation);
       }
     };
 

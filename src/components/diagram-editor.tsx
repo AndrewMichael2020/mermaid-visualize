@@ -26,9 +26,18 @@ import {
 interface DiagramEditorProps {
   code: string;
   onCodeChange: (newCode: string) => void;
+  /**
+   * Error context from the diagram viewer — set when a render error occurred
+   * and the one-shot AI fix also failed.  Used to enrich the Enhance prompt so
+   * the LLM is aware of what went wrong and what was already attempted.
+   */
+  errorContext?: {
+    errorMessage: string;
+    aiAttemptExplanation: string;
+  };
 }
 
-export default function DiagramEditor({ code, onCodeChange }: DiagramEditorProps) {
+export default function DiagramEditor({ code, onCodeChange, errorContext }: DiagramEditorProps) {
   const [activeTab, setActiveTab] = useState("code");
   const [generateDescription, setGenerateDescription] = useState("");
   const [enhancePrompt, setEnhancePrompt] = useState("");
@@ -109,7 +118,22 @@ export default function DiagramEditor({ code, onCodeChange }: DiagramEditorProps
     setIsEnhancing(true);
     try {
       logUserActivity(user?.uid, 'start_enhance_diagram');
-      const result = await enhanceDiagramWithLLM({ diagramCode: code, enhancementPrompt: enhancePrompt });
+
+      // If the diagram is in an error state, inject that context so the LLM
+      // knows what went wrong and what was already attempted.
+      let finalPrompt = enhancePrompt;
+      if (errorContext?.errorMessage) {
+        finalPrompt =
+          `${enhancePrompt}\n\n` +
+          `IMPORTANT — the current diagram has a syntax/rendering error that MUST ` +
+          `also be fixed in your output:\nError: ${errorContext.errorMessage}`;
+        if (errorContext.aiAttemptExplanation) {
+          finalPrompt +=
+            `\nPrevious AI fix attempt (unsuccessful): ${errorContext.aiAttemptExplanation}`;
+        }
+      }
+
+      const result = await enhanceDiagramWithLLM({ diagramCode: code, enhancementPrompt: finalPrompt });
       if (result && result.enhancedDiagramCode) {
         onCodeChange(result.enhancedDiagramCode);
         setActiveTab("code");

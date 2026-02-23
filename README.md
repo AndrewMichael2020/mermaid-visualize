@@ -15,6 +15,7 @@
 
 [![Tests](https://img.shields.io/badge/tests-32_passing-brightgreen?logo=jest&logoColor=white)](./jest.config.js)
 [![Coverage](https://img.shields.io/badge/coverage-76%25-yellow?logo=jest&logoColor=white)](./coverage)
+[![Live AI Tests](https://github.com/AndrewMichael2020/mermaid-visualize/actions/workflows/live-api-tests.yml/badge.svg)](https://github.com/AndrewMichael2020/mermaid-visualize/actions/workflows/live-api-tests.yml)
 [![0 Vulnerabilities](https://img.shields.io/badge/vulnerabilities-0-brightgreen?logo=snyk&logoColor=white)](./package.json)
 [![ESLint](https://img.shields.io/badge/ESLint-passing-4B32C3?logo=eslint&logoColor=white)](./eslint.config.cjs)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)

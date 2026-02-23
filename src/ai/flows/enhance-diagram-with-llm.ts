@@ -39,9 +39,9 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
 
   MERMAID v10.9.1 SYNTAX RULES (CRITICAL — apply to all new and existing content):
 
-  1. MINIMALIST QUOTING (STRICT): To prevent parse errors in Mermaid v10.9.1, follow these rules exactly:
-     - DO NOT wrap alt, else, loop, opt, par, critical, break, or subgraph block headers in quotes.
-       Use plain text labels: e.g., alt Access via Phone ... else Access in Person ... end
+  1. QUOTING RULES: To prevent parse errors in Mermaid v10.9.1, follow these rules exactly:
+     - alt, else, loop, opt, par, critical, break, and subgraph block headers MAY be plain text or
+       quoted. Either form is valid: alt User is authenticated  OR  alt "User is authenticated"
      - DO NOT wrap message labels after a colon in quotes.
        e.g., A->>B: Request Care  (NOT: A->>B: "Request Care")
      - STRIP SPECIAL CHARACTERS: Remove parentheses (), slashes /, and backslashes \ from all labels.
@@ -63,9 +63,16 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      and subgraph keywords in the diagram. Ensure an exactly equal number of "end" keywords are present.
      Missing or extra "end" keywords make the entire diagram unparseable.
 
+  5. SEQUENCE DIAGRAM ACTIVATION BALANCE: In sequence diagrams, balance activate/deactivate on EVERY branch path.
+     A deactivate in one alt/else branch does NOT automatically deactivate in sibling branches — each branch is
+     evaluated independently from the activation state that existed when the alt/opt block opened, so EVERY branch
+     must handle its own activate/deactivate lifecycle. Participants left active in any branch remain active after
+     the block closes. Do NOT mix shorthand arrow activation (->+ / ->-) with explicit activate/deactivate
+     statements in the same diagram; prefer the explicit form for complex scopes.
+
   THEMING GUIDELINES:
-  5. If the original diagram code contains a theme initialization block (%%{init: {...}}%%), PRESERVE it in your output.
-  6. If the original diagram does NOT have a theme block and the diagram type is NOT erDiagram (ER diagrams), ADD a theme initialization block at the beginning.
+  6. If the original diagram code contains a theme initialization block (%%{init: {...}}%%), PRESERVE it in your output.
+  7. If the original diagram does NOT have a theme block and the diagram type is NOT erDiagram (ER diagrams), ADD a theme initialization block at the beginning.
      
      For flowchart/graph, classDiagram, stateDiagram use:
      %%{init: {
@@ -107,9 +114,9 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      
      For other diagram types (timeline, gantt, gitGraph, journey, mindmap, pie), use the flowchart themeVariables format as a base.
      
-  7. For erDiagram (ER diagrams), do NOT add or modify any theme blocks. Keep the code clean without styling.
-  8. If the user specifically requests color or theme changes, update the themeVariables accordingly.
-  9. You MAY also use classDef and class styling for flowcharts when appropriate.
+  8. For erDiagram (ER diagrams), do NOT add or modify any theme blocks. Keep the code clean without styling.
+  9. If the user specifically requests color or theme changes, update the themeVariables accordingly.
+  10. You MAY also use classDef and class styling for flowcharts when appropriate.
 
   Original Diagram Code:
   '''mermaid

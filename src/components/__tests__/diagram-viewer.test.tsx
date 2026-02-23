@@ -182,4 +182,46 @@ describe('DiagramViewer', () => {
       expect(screen.getByText(/Corrected node label syntax\./)).toBeInTheDocument();
     });
   });
+
+  // ── onFixStateChange callback ─────────────────────────────────────────────
+
+  describe('onFixStateChange callback', () => {
+    it('calls onFixStateChange(null, null) when diagram renders successfully', async () => {
+      const onFixStateChange = jest.fn();
+      render(<DiagramViewer {...defaultProps} onFixStateChange={onFixStateChange} />);
+
+      await screen.findByText('Visualization');
+      await waitFor(() => {
+        expect(onFixStateChange).toHaveBeenCalledWith(null, null);
+      });
+    });
+
+    it('calls onFixStateChange(null, null) when AI fix succeeds', async () => {
+      mockParse
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+      mockRender.mockResolvedValue({ svg: '<svg>fixed</svg>' });
+      mockFetch({ fixedCode: 'graph TD\n  A --> B', explanation: 'Fixed bracket.' });
+
+      const onFixStateChange = jest.fn();
+      render(<DiagramViewer {...defaultProps} onFixStateChange={onFixStateChange} />);
+
+      await screen.findByText('Auto-corrected:');
+      expect(onFixStateChange).toHaveBeenCalledWith(null, null);
+    });
+
+    it('calls onFixStateChange with error details when AI fix fails', async () => {
+      mockParse.mockResolvedValue(false);
+      mockFetch({ fixedCode: 'graph TD\n  A --> B[StillBroken', explanation: 'Tried to close bracket.' });
+
+      const onFixStateChange = jest.fn();
+      render(<DiagramViewer {...defaultProps} onFixStateChange={onFixStateChange} />);
+
+      await screen.findByText('Diagram Error — AI fix unsuccessful');
+      expect(onFixStateChange).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid Mermaid syntax'),
+        'Tried to close bracket.'
+      );
+    });
+  });
 });
