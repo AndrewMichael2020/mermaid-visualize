@@ -9,7 +9,7 @@ ENV NODE_ENV=development
 # Install build dependencies
 RUN apk add --no-cache --virtual .gyp python3 make g++
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 FROM node:20-alpine AS builder
@@ -24,7 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install only production deps
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --omit=dev
 
 # Copy built assets and public files
