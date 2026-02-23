@@ -171,6 +171,81 @@ describe('validateMermaidSyntax', () => {
     expect(result.valid).toBe(true);
   });
 
+  // ── alt/else branch-aware activation tracking (issue: state/scope desync) ─
+
+  it('does NOT flag valid activate/deactivate across alt/else branches (minimal reproduction)', () => {
+    // Each branch independently handles the participants that were active when
+    // the alt block opened — the validator must restore that state at each else.
+    const code = [
+      '%%{init: {"theme": "base"}}%%',
+      'sequenceDiagram',
+      '    participant Patient',
+      '    participant UPCC as UPCC Reception',
+      '    participant Nurse',
+      '    participant Provider',
+      '',
+      '    Patient->>UPCC: Arrives',
+      '    activate UPCC',
+      '    UPCC->>Nurse: Registration + handover',
+      '    activate Nurse',
+      '',
+      '    alt Life-threatening symptoms',
+      '        Nurse->>911: Divert to ED',
+      '        deactivate Nurse',
+      '        deactivate UPCC',
+      '    else Non-life-threatening symptoms',
+      '        Nurse-->>Provider: Refer for assessment',
+      '        deactivate Nurse',
+      '        activate Provider',
+      '        Provider-->>Patient: Treat',
+      '        deactivate Provider',
+      '    end',
+      '',
+      '    loop After-Hours/Weekend',
+      '        Patient->>UPCC: Arrives after-hours',
+      '        activate UPCC',
+      '        UPCC->>Nurse: Registration + handover',
+      '        activate Nurse',
+      '        deactivate Nurse',
+      '        deactivate UPCC',
+      '    end',
+      '',
+      '    deactivate UPCC',
+    ].join('\n');
+    const result = validateMermaidSyntax(code);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('detects a genuine deactivate-without-activate that is NOT inside an alt/else branch', () => {
+    const code = [
+      'sequenceDiagram',
+      '  alt Success',
+      '    A->>B: ok',
+      '  end',
+      '  deactivate B', // B was never activated anywhere
+    ].join('\n');
+    const result = validateMermaidSyntax(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].message).toMatch(/deactivate B.*no preceding.*activate B/i);
+  });
+
+  it('detects an unmatched activate that is present in both alt branches', () => {
+    // Both branches activate A but neither deactivates it
+    const code = [
+      'sequenceDiagram',
+      '  alt Condition',
+      '    activate A',
+      '  else Other',
+      '    activate A',
+      '  end',
+      // A is activated in both branches but never deactivated
+    ].join('\n');
+    const result = validateMermaidSyntax(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.message.includes("activate A"))).toBe(true);
+  });
+
   // ── Comments ignored ──────────────────────────────────────────────────────
 
   it('ignores %% comments', () => {
