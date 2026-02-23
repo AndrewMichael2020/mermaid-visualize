@@ -22,7 +22,7 @@ After testing multiple deployment methods, **building with Docker directly in Gi
 | **Docker build in GitHub Actions** | ✅ **RECOMMENDED** | Fast, simple, reliable |
 | Cloud Build (`gcloud builds submit`) | ⚠️ Works but slower | 10min builds, complex permissions, log streaming issues |
 | Cloud Build with multiple tags | ❌ Failed | `gcloud builds submit` only accepts one `--tag` |
-| Firebase App Hosting | ⚠️ Alternative | Good for Firebase-heavy apps, different deployment model |
+| Firebase App Hosting | ❌ Removed | Replaced by direct Cloud Run deployment |
 
 ## Architecture
 
@@ -155,12 +155,6 @@ Set these secrets in your GitHub repository (Settings → Secrets and variables 
 | `GCP_PROJECT` | GCP project ID | `my-project-123456` |
 | `CLOUD_RUN_SERVICE` | Cloud Run service name | `mermaid-vizualizer` |
 | `CLOUD_RUN_REGION` | GCP region | `us-central1` |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase API key | `AIza...` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | `my-firebase-project` |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID | `1:123456:web:abc` |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain | `my-project.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | `my-project.appspot.com` |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | `123456789` |
 | `GEMINI_API_KEY` | Google Gemini API key | `AIza...` |
 
 **Quick setup using GitHub CLI:**
@@ -171,45 +165,22 @@ gh secret set GCP_PROJECT --body "your-project-id"
 gh secret set CLOUD_RUN_SERVICE --body "mermaid-vizualizer"
 gh secret set CLOUD_RUN_REGION --body "us-central1"
 
-# Set Firebase secrets
-gh secret set NEXT_PUBLIC_FIREBASE_API_KEY --body "your-api-key"
-gh secret set NEXT_PUBLIC_FIREBASE_PROJECT_ID --body "your-project-id"
-gh secret set NEXT_PUBLIC_FIREBASE_APP_ID --body "1:123:web:abc"
-gh secret set NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN --body "your-project.firebaseapp.com"
-gh secret set NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET --body "your-project.appspot.com"
-gh secret set NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID --body "123456789"
+# Set OAuth2 + nextauth secrets
+gh secret set GOOGLE_CLIENT_ID --body "your-oauth2-client-id"
+gh secret set GOOGLE_CLIENT_SECRET --body "your-oauth2-client-secret"
+gh secret set NEXTAUTH_SECRET --body "$(openssl rand -base64 32)"
+gh secret set NEXTAUTH_URL --body "https://mermaid-vizualizer-xxx.us-central1.run.app"
 
 # Set API keys
 gh secret set GEMINI_API_KEY --body "your-gemini-key"
 ```
 
-**Get Firebase configuration from Firebase Console:**
+**Get OAuth2 credentials from GCP Console:**
 
 ```bash
-# Navigate to: Firebase Console → Project Settings → General → Your apps → Web app
-# Or use Firebase CLI:
-firebase apps:sdkconfig WEB
-
-# Example output (JSON format):
-{
-  "apiKey": "AIzaSy...",
-  "authDomain": "your-project.firebaseapp.com",
-  "projectId": "your-project-id",
-  "storageBucket": "your-project.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "1:123456789:web:abc123"
-}
-
-# Extract and set secrets using jq:
-firebase apps:sdkconfig WEB --json | jq -r '
-  "gh secret set NEXT_PUBLIC_FIREBASE_API_KEY --body \(.apiKey)",
-  "gh secret set NEXT_PUBLIC_FIREBASE_PROJECT_ID --body \(.projectId)",
-  "gh secret set NEXT_PUBLIC_FIREBASE_APP_ID --body \(.appId)",
-  "gh secret set NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN --body \(.authDomain)",
-  "gh secret set NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET --body \(.storageBucket)",
-  "gh secret set NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID --body \(.messagingSenderId)"
-' | bash
-```
+# Navigate to: GCP Console → APIs & Services → Credentials → Create OAuth2 Client
+# Application type: Web application
+# Add redirect URI: https://your-service-url/api/auth/callback/google
 
 **Get Gemini API Key:**
 
@@ -439,12 +410,6 @@ jobs:
       region: us-central1
       image-tag: ${{ github.sha }}
       secrets-to-check: |
-        NEXT_PUBLIC_FIREBASE_API_KEY
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        NEXT_PUBLIC_FIREBASE_APP_ID
-        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
         GEMINI_API_KEY
     secrets:
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
@@ -452,8 +417,8 @@ jobs:
 
 **Required secrets and how they are used**
 - **Repository secret:** `GCP_SA_KEY` — raw service account JSON (or base64-encoded JSON) used by the workflow to authenticate `gcloud`.
-- **GCP Secret Manager (in the target project):** the deploy workflow checks presence of the runtime secrets listed in `secrets-to-check`. Typical defaults in this repo are the Firebase client keys and `GEMINI_API_KEY`.
- - **GCP Secret Manager (in the target project):** the deploy workflow checks presence of the runtime secrets listed in `secrets-to-check`. Typical defaults in this repo are the Firebase client keys and `GEMINI_API_KEY`.
+- **GCP Secret Manager (in the target project):** the deploy workflow checks presence of the runtime secrets listed in `secrets-to-check`. Typical defaults in this repo are `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GEMINI_API_KEY`.
+ - **GCP Secret Manager (in the target project):** the deploy workflow checks presence of the runtime secrets listed in `secrets-to-check`. Typical defaults in this repo are `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GEMINI_API_KEY`.
  - **Use `:latest` for runtime secrets:** The workflows and recommended deployments map secrets using the `:latest` suffix (for example `projects/PROJECT_NUMBER/secrets/NAME:latest`). This avoids breaking autoscaled instances when older secret versions are disabled. Avoid pinning to numeric versions unless you have a specific reason.
 
 **Provisioning & secrets — recommended quick steps**
@@ -463,7 +428,6 @@ Notes about runtime service accounts and Secret Manager access
 - Cloud Run revisions read secrets on startup using the revision's runtime service account (often a compute service account or a custom service account). Ensure that the runtime service account has `roles/secretmanager.secretAccessor` on the secrets it must read.
 - When uploading secrets, grant the runtime service account access. Example:
 ```bash
-gcloud secrets add-iam-policy-binding NEXT_PUBLIC_FIREBASE_API_KEY \
   --project=YOUR_PROJECT \
   --member="serviceAccount:YOUR_RUNTIME_SA" \
   --role="roles/secretmanager.secretAccessor"
@@ -577,12 +541,6 @@ jobs:
       region: us-central1
       image-tag: ${{ github.sha }}
       secrets-to-check: |
-        NEXT_PUBLIC_FIREBASE_API_KEY
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        NEXT_PUBLIC_FIREBASE_APP_ID
-        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
         GEMINI_API_KEY
     secrets:
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
