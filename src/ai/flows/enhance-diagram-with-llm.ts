@@ -39,13 +39,16 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
 
   MERMAID v10.9.1 SYNTAX RULES (CRITICAL — apply to all new and existing content):
 
-  1. UNIVERSAL QUOTING: Every human-readable label MUST be wrapped in double quotes whenever it:
-     - Follows a colon (:) in a message/label, e.g., A->>B: "My label"
-     - Appears as a logic-block header after alt, else, loop, opt, par, critical, break, or subgraph
-       e.g., alt "Access by phone" ... else "Access in person" ... end
-     - Appears inside a Note statement, e.g., Note over A,B: "Some text"
-     - Contains ANY space, parenthesis, slash (/), dash (-), ampersand (&), bracket, or other special character
-     Example: alt "Access by phone" is correct; alt Access by phone will cause a parse error.
+  1. MINIMALIST QUOTING (STRICT): To prevent parse errors in Mermaid v10.9.1, follow these rules exactly:
+     - DO NOT wrap alt, else, loop, opt, par, critical, break, or subgraph block headers in quotes.
+       Use plain text labels: e.g., alt Access via Phone ... else Access in Person ... end
+     - DO NOT wrap message labels after a colon in quotes.
+       e.g., A->>B: Request Care  (NOT: A->>B: "Request Care")
+     - STRIP SPECIAL CHARACTERS: Remove parentheses (), slashes /, and backslashes \ from all labels.
+       e.g., use Same day 12hrs instead of Same-day (12hrs)
+     - NO SMART QUOTES: Do not use curly/smart quotes (\u2018\u2019\u201C\u201D). Use only standard
+       straight apostrophes ' when strictly necessary, but prefer removing them entirely.
+       e.g., use medical home instead of 'medical home'
 
   2. ID/LABEL SEPARATION FOR PARTICIPANTS/ACTORS: Use short, plain IDs (no spaces or special characters) and
      the "as" keyword to set human-readable display labels in double quotes.

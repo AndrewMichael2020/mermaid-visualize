@@ -46,12 +46,13 @@ Rules:
 - Do not add features or change the diagram beyond what is needed to fix the error.
 
 MERMAID v10.9.1 COMMON FIXES to apply while correcting:
-- Wrap all logic-block headers in double quotes: alt "label", else "label", loop "label", opt "label", subgraph "label"
-- Wrap all message labels after colons in double quotes: A->>B: "label"
-- Wrap Note text in double quotes: Note over A,B: "text"
+- Use plain text for logic-block headers — do NOT wrap in quotes: alt label, else label, loop label, opt label, subgraph label
+- Use plain text for message labels after colons — do NOT wrap in quotes: A->>B: label
+- Strip parentheses (), slashes /, and backslashes \ from all labels to prevent parse errors
 - Use short plain IDs with "as" for participant display labels: participant P as "Patient (User)"
 - Remove any embedded URLs, HTML tags, or Markdown formatting from labels; use %% comments for references
 - Verify that the count of alt/loop/opt/par/critical/break/subgraph keywords exactly equals the count of "end" keywords
+- Do not use curly/smart quotes in any label; use only standard straight apostrophes ' if needed
 
 Broken diagram code:
 {{{diagramCode}}}
