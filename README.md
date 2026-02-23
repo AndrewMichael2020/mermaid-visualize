@@ -1,8 +1,8 @@
 # Mermaid Cloud Viz
 
-[![Build & Deploy](https://github.com/AndrewMichael2020/mermaid-exporter/actions/workflows/main.yml/badge.svg)](https://github.com/AndrewMichael2020/mermaid-exporter/actions/workflows/main.yml)
+[![Build & Deploy](https://github.com/AndrewMichael2020/mermaid-vizualizer/actions/workflows/main.yml/badge.svg)](https://github.com/AndrewMichael2020/mermaid-vizualizer/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Issues](https://img.shields.io/github/issues/AndrewMichael2020/mermaid-exporter.svg)](https://github.com/AndrewMichael2020/mermaid-exporter/issues)
+[![Issues](https://img.shields.io/github/issues/AndrewMichael2020/mermaid-vizualizer.svg)](https://github.com/AndrewMichael2020/mermaid-vizualizer/issues)
 
 **Create beautiful diagrams with AI assistance — no design skills required.**
 
@@ -37,7 +37,7 @@ Our app makes this even easier — just tell AI what you want, and it writes the
 
 ## 🚀 Quick Start (Users)
 
-1. **Visit** [the live app](https://mermaid-exporter-r34k7xewoa-uc.a.run.app)
+1. **Visit** [the live app](https://mermaid-vizualizer-r34k7xewoa-uc.a.run.app)
 2. **Try the AI generator:**
    - Click "Generate with AI"
    - Describe your diagram (e.g., "flowchart showing software release process")
@@ -61,8 +61,8 @@ Our app makes this even easier — just tell AI what you want, and it writes the
 
 ```bash
 # Clone and install
-git clone https://github.com/AndrewMichael2020/mermaid-exporter.git
-cd mermaid-exporter
+git clone https://github.com/AndrewMichael2020/mermaid-vizualizer.git
+cd mermaid-vizualizer
 npm install
 
 # Start AI server (terminal 1)
@@ -112,8 +112,8 @@ Distributed under the MIT License. See [`LICENSE`](./LICENSE) for more informati
 
 ## 📞 Support
 
-- 🐛 [Report a bug](https://github.com/AndrewMichael2020/mermaid-exporter/issues/new?labels=bug)
-- 💡 [Request a feature](https://github.com/AndrewMichael2020/mermaid-exporter/issues/new?labels=enhancement)
+- 🐛 [Report a bug](https://github.com/AndrewMichael2020/mermaid-vizualizer/issues/new?labels=bug)
+- 💡 [Request a feature](https://github.com/AndrewMichael2020/mermaid-vizualizer/issues/new?labels=enhancement)
 - 📖 [View documentation](./docs/)
 - 🔧 [Deployment guide](.github/workflows/CICD-STRATEGY.md)
 

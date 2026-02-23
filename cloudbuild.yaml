@@ -10,10 +10,10 @@
 #
 # Usage:
 #   gcloud builds submit --config=cloudbuild.yaml \
-#     --substitutions=_SERVICE_NAME=mermaid-exporter,_REGION=us-central1
+#     --substitutions=_SERVICE_NAME=mermaid-vizualizer,_REGION=us-central1
 
 substitutions:
-  _SERVICE_NAME: mermaid-exporter
+  _SERVICE_NAME: mermaid-vizualizer
   _REGION: us-central1
 
 steps:

@@ -149,7 +149,7 @@ The application requires the following secrets in Secret Manager:
 | `GOOGLE_CLIENT_ID` | OAuth2 client ID (GCP Console → APIs & Services → Credentials) |
 | `GOOGLE_CLIENT_SECRET` | OAuth2 client secret |
 | `NEXTAUTH_SECRET` | Random 32-char string for JWT signing (`openssl rand -base64 32`) |
-| `NEXTAUTH_URL` | Public URL of your Cloud Run service (e.g. `https://mermaid-exporter-xxx.run.app`) |
+| `NEXTAUTH_URL` | Public URL of your Cloud Run service (e.g. `https://mermaid-vizualizer-xxx.run.app`) |
 
 ### 2. Create secrets using gcloud
 
@@ -193,7 +193,7 @@ done
 ### 1. Create an Artifact Registry repository (optional, for Artifact Registry instead of GCR)
 
 ```bash
-gcloud artifacts repositories create mermaid-exporter \
+gcloud artifacts repositories create mermaid-vizualizer \
   --repository-format=docker \
   --location=$REGION \
   --description="Docker images for Mermaid Exporter"
@@ -215,7 +215,7 @@ gcloud auth configure-docker ${REGION}-docker.pkg.dev
 
 ```bash
 # Set variables
-export SERVICE_NAME="mermaid-exporter"
+export SERVICE_NAME="mermaid-vizualizer"
 export REGION="us-central1"
 
 # Submit build and deploy
@@ -273,7 +273,7 @@ Add the following secrets to your GitHub repository (Settings → Secrets and va
 |-------------|-------|
 | `GCP_PROJECT` | Your GCP project ID |
 | `GCP_SA_KEY` | Contents of `sa-key.json` (the service account key JSON) |
-| `CLOUD_RUN_SERVICE` | Service name (e.g., `mermaid-exporter`) |
+| `CLOUD_RUN_SERVICE` | Service name (e.g., `mermaid-vizualizer`) |
 | `CLOUD_RUN_REGION` | Region (e.g., `us-central1`) |
 
 ### 2. Trigger deployment

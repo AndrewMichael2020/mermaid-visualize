@@ -153,7 +153,7 @@ Set these secrets in your GitHub repository (Settings → Secrets and variables 
 |-------------|-------------|---------------|
 | `GCP_SA_KEY` | Service account JSON key (full JSON) | `{"type":"service_account",...}` |
 | `GCP_PROJECT` | GCP project ID | `my-project-123456` |
-| `CLOUD_RUN_SERVICE` | Cloud Run service name | `mermaid-exporter` |
+| `CLOUD_RUN_SERVICE` | Cloud Run service name | `mermaid-vizualizer` |
 | `CLOUD_RUN_REGION` | GCP region | `us-central1` |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase API key | `AIza...` |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | `my-firebase-project` |
@@ -168,7 +168,7 @@ Set these secrets in your GitHub repository (Settings → Secrets and variables 
 ```bash
 # Set infrastructure secrets
 gh secret set GCP_PROJECT --body "your-project-id"
-gh secret set CLOUD_RUN_SERVICE --body "mermaid-exporter"
+gh secret set CLOUD_RUN_SERVICE --body "mermaid-vizualizer"
 gh secret set CLOUD_RUN_REGION --body "us-central1"
 
 # Set Firebase secrets
@@ -432,7 +432,7 @@ name: Remote Deploy
 on: workflow_dispatch: {}
 jobs:
   call-deploy:
-    uses: AndrewMichael2020/mermaid-exporter/.github/workflows/reusable-deploy-cloudrun.yml@main
+    uses: AndrewMichael2020/mermaid-vizualizer/.github/workflows/reusable-deploy-cloudrun.yml@main
     with:
       project: YOUR_GCP_PROJECT_ID
       service: YOUR_CLOUD_RUN_SERVICE
@@ -554,7 +554,7 @@ name: Remote CI
 on: [push]
 jobs:
   call-ci:
-    uses: AndrewMichael2020/mermaid-exporter/.github/workflows/reusable-ci.yml@main
+    uses: AndrewMichael2020/mermaid-vizualizer/.github/workflows/reusable-ci.yml@main
     with:
       node-version: '20'
       run-lint: true
@@ -570,7 +570,7 @@ on:
   workflow_dispatch: {}
 jobs:
   call-deploy:
-    uses: AndrewMichael2020/mermaid-exporter/.github/workflows/reusable-deploy-cloudrun.yml@main
+    uses: AndrewMichael2020/mermaid-vizualizer/.github/workflows/reusable-deploy-cloudrun.yml@main
     with:
       project: YOUR_GCP_PROJECT_ID
       service: YOUR_CLOUD_RUN_SERVICE

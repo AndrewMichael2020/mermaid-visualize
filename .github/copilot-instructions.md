@@ -1,5 +1,5 @@
-cat > /workspaces/mermaid-exporter/.github/copilot-instructions.md << 'EOF'
-# GitHub Copilot Instructions for mermaid-exporter
+cat > /workspaces/mermaid-vizualizer/.github/copilot-instructions.md << 'EOF'
+# GitHub Copilot Instructions for mermaid-vizualizer
 
 ## Workflow & Communication
 - Do not offer options unless necessary; proceed with best practices for a prototype (!) DO NOT OVERWHEALM WITH OPTIONS.
