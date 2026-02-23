@@ -1,122 +1,110 @@
 # Mermaid Cloud Viz
 
-[![Build & Deploy](https://github.com/AndrewMichael2020/mermaid-vizualizer/actions/workflows/main.yml/badge.svg)](https://github.com/AndrewMichael2020/mermaid-vizualizer/actions/workflows/main.yml)
+[![Build & Deploy](https://github.com/AndrewMichael2020/mermaid-visualize/actions/workflows/main.yml/badge.svg)](https://github.com/AndrewMichael2020/mermaid-visualize/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Issues](https://img.shields.io/github/issues/AndrewMichael2020/mermaid-vizualizer.svg)](https://github.com/AndrewMichael2020/mermaid-vizualizer/issues)
 
-**Create beautiful diagrams with AI assistance — no design skills required.**
+**Turn plain English into professional diagrams — instantly.**
 
-An AI-powered application that makes creating professional diagrams as easy as describing what you need. Built with Next.js and powered by Google Gemini AI.
+Mermaid Cloud Viz is an AI-powered diagramming tool that lets anyone create flowcharts, sequence diagrams, timelines, and more by simply describing what they need. No design skills. No drag-and-drop frustration. Just results.
 
-🌐 **Deploy on Google Cloud Run and try it out**
-
-![Mermaid Cloud Viz Screenshot](docs/gallery-1.png)
+🌐 **[Try it live →](https://mermaid-vizualizer-536375482650.us-central1.run.app)**
 
 ---
 
-## 🎯 What Can You Do?
+## Why Mermaid Cloud Viz?
 
-### For Everyone
-- **💬 Describe, Don't Draw** — Type what you want (e.g., "workflow for customer onboarding"), and AI generates the diagram
-- **✨ Instant Visualization** — See your diagram update in real-time as you type
-- **🎨 Professional Quality** — Export high-quality SVG files ready for presentations and docs
-- **📚 Start from Examples** — Browse our gallery of pre-built diagrams and customize them
-- **🤖 AI Enhancement** — Ask AI to improve, restructure, or add details to any diagram
+Most diagramming tools require you to learn their interface before you can create anything useful. Mermaid Cloud Viz flips that — you describe the outcome, and the AI builds the diagram. It's the difference between spending 30 minutes on layout versus 30 seconds on a description.
 
-### What Are Mermaid Diagrams?
-[Mermaid](https://mermaid.js.org) is a simple text format for creating diagrams. Instead of dragging boxes around, you write:
-```mermaid
-graph LR
-    A[Start] --> B[Process]
-    B --> C[End]
-```
-
-Our app makes this even easier — just tell AI what you want, and it writes the code for you!
+**Who uses it:**
+- 📋 **Product managers** — document workflows and user journeys fast
+- 👩‍💻 **Engineers** — generate architecture and system flow diagrams from specs
+- 📊 **Business analysts** — turn process descriptions into clear visuals for stakeholders
+- 🎓 **Anyone** who needs a diagram and doesn't want to become a diagramming expert first
 
 ---
 
-## 🚀 Quick Start (Users)
+## Features
 
-1. **Visit** [the live app](https://mermaid-vizualizer-r34k7xewoa-uc.a.run.app)
-2. **Try the AI generator:**
-   - Click "Generate with AI"
-   - Describe your diagram (e.g., "flowchart showing software release process")
-   - Click Generate
-3. **Or browse examples:**
-   - Click "Gallery"
-   - Pick a diagram template
-   - Customize it to your needs
-4. **Export your diagram:**
-   - Click "Export SVG"
-   - Use in presentations, docs, or websites
+| | |
+|---|---|
+| 🤖 **AI Generation** | Describe your diagram in plain language — Gemini AI writes the code |
+| ✨ **AI Enhancement** | Ask AI to improve, extend, or restructure any existing diagram |
+| 👁️ **Live Preview** | See your diagram update in real time as you type |
+| 🌙 **Light / Dark themes** | Switch rendering themes for presentations or docs |
+| 📥 **SVG Export** | Download production-quality vector files |
+| 📚 **Gallery** | Start from curated templates and customize |
+| 🔐 **Google Sign-In** | Secure authentication, no password required |
 
 ---
 
-## 🛠️ For Developers
+## How It Works
 
-> **Want to contribute, deploy your own instance, or modify the code?**  
-> See **[.github/workflows/CICD-STRATEGY.md](.github/workflows/CICD-STRATEGY.md)** for complete setup, deployment, and CI/CD documentation.
+1. **Describe** — type what you need ("flowchart for a software release process")
+2. **Generate** — AI produces valid [Mermaid](https://mermaid.js.org) diagram code
+3. **Refine** — edit the code or ask AI to enhance it further
+4. **Export** — download as SVG, ready for slides, docs, or wikis
 
-### Quick Local Setup
+---
+
+## For Developers
+
+### Local Setup
 
 ```bash
-# Clone and install
-git clone https://github.com/AndrewMichael2020/mermaid-vizualizer.git
-cd mermaid-vizualizer
+git clone https://github.com/AndrewMichael2020/mermaid-visualize.git
+cd mermaid-visualize
 npm install
-
-# Start AI server (terminal 1)
-npm run genkit:dev
-
-# Start web app (terminal 2)
-npm run dev
-
-# Open http://localhost:9005
 ```
 
-**Configuration:**
-- Copy `.env.local.example` to `.env.local`
-- Add your Firebase and Gemini API keys
-- See [CICD-STRATEGY.md](.github/workflows/CICD-STRATEGY.md) for detailed setup instructions
+Create `.env.local`:
+```env
+GEMINI_API_KEY=your-gemini-api-key
+GOOGLE_CLIENT_ID=your-oauth2-client-id
+GOOGLE_CLIENT_SECRET=your-oauth2-client-secret
+NEXTAUTH_SECRET=any-random-32-char-string
+NEXTAUTH_URL=http://localhost:9005
+```
 
-### Deploy Your Own Instance
+```bash
+npm run dev        # → http://localhost:9005
+npm run genkit:dev # AI server (separate terminal)
+```
 
-Full deployment guide with infrastructure setup, IAM permissions, and CI/CD automation:
-👉 **[.github/workflows/CICD-STRATEGY.md](.github/workflows/CICD-STRATEGY.md)**
+### Tech Stack
 
---- 
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15, React 19 |
+| AI | Google Gemini 2.5 Flash (via Genkit) |
+| Auth | next-auth + Google OAuth2 |
+| Logging | Google Cloud Datastore |
+| Metrics | prom-client + Cloud Monitoring |
+| Styling | Tailwind CSS, shadcn/ui |
+| Deployment | Google Cloud Run (min 0, max 1 instance) |
+| CI/CD | GitHub Actions |
 
----
+### Deploy Your Own
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-Distributed under the MIT License. See [`LICENSE`](./LICENSE) for more information.
-
-## 🙏 Acknowledgments
-
-- [Mermaid.js](https://mermaid.js.org) — The diagram rendering engine
-- [Google OpenAI and Gemini](https://ai.google.dev) — AI models powering diagram generation
-- [Next.js](https://nextjs.org) — React framework
-- [Tailwind CSS](https://tailwindcss.com) — Styling framework
-- [shadcn/ui](https://ui.shadcn.com) — UI components
-
-## 📞 Support
-
-- 🐛 [Report a bug](https://github.com/AndrewMichael2020/mermaid-vizualizer/issues/new?labels=bug)
-- 💡 [Request a feature](https://github.com/AndrewMichael2020/mermaid-vizualizer/issues/new?labels=enhancement)
-- 📖 [View documentation](./docs/)
-- 🔧 [Deployment guide](.github/workflows/CICD-STRATEGY.md)
+Full deployment guide — GCP setup, IAM roles, Secret Manager, CI/CD:  
+👉 **[docs/deployment.md](./docs/deployment.md)**
 
 ---
 
-**Made with ❤️ using open source and AI**
+## Contributing
+
+1. Fork → feature branch → PR
+2. Run `npm test` and `npm run typecheck` before submitting
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE)
+
+---
+
+## Acknowledgements
+
+- [Mermaid.js](https://mermaid.js.org) — diagram rendering engine
+- [Google Gemini](https://ai.google.dev) — AI model
+- [Next.js](https://nextjs.org) · [Tailwind CSS](https://tailwindcss.com) · [shadcn/ui](https://ui.shadcn.com)
