@@ -401,3 +401,293 @@ describe('Live Gemini API — enhance-diagram-with-llm flow', () => {
     expect(loopErrors).toHaveLength(0);
   });
 });
+
+// ─── Additional edge-case fixtures ───────────────────────────────────────────
+
+// Sequence diagram where alt/else block headers are quoted (Mermaid v10 parse error).
+const QUOTED_ALT_HEADERS = `sequenceDiagram
+    participant A
+    participant B
+    alt "User is authenticated"
+        A->>B: Fetch data
+        B-->>A: Return results
+    else "User is not authenticated"
+        A->>B: Redirect to login
+    end`;
+
+// Sequence diagram using smart/curly quotes in message labels.
+const SMART_QUOTES_DIAGRAM = `sequenceDiagram
+    participant A
+    participant B
+    A->>B: \u201crequest care\u201d
+    B-->>A: \u201ccare provided\u201d`;
+
+// Sequence diagram with a participant declared using spaces (illegal raw ID).
+const ILLEGAL_PARTICIPANT_ID = `sequenceDiagram
+    participant Alice Smith
+    participant Bob Jones
+    Alice Smith->>Bob Jones: Hello`;
+
+// Flowchart with a missing --> arrow (broken syntax) that the model should fix.
+const BROKEN_FLOWCHART = `flowchart TD
+    A[Start] B[Process]
+    B --> C[End]`;
+
+// Valid flowchart (no theme) — used as input for enhance tests.
+const VALID_FLOWCHART_NO_THEME = `flowchart TD
+    A[Patient arrives] --> B[Triage]
+    B --> C{Severity}
+    C -->|High| D[Emergency]
+    C -->|Low| E[Walk-in clinic]`;
+
+// Valid ER diagram — enhance must NOT add a theme block to this type.
+const VALID_ER_DIAGRAM = `erDiagram
+    PATIENT {
+        string id PK
+        string name
+    }
+    APPOINTMENT {
+        string id PK
+        string date
+    }
+    PATIENT ||--o{ APPOINTMENT : schedules`;
+
+// Themed sequence diagram — enhance MUST preserve the %%{init} block.
+const THEMED_SEQUENCE = `%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#FFE4B5"}}}%%
+sequenceDiagram
+    participant A
+    participant B
+    A->>B: Hello`;
+
+// Sequence diagram with imbalanced activate/deactivate across branches.
+const IMBALANCED_ACTIVATION = `sequenceDiagram
+    participant A
+    participant B
+    activate A
+    alt success
+        A->>B: call
+        activate B
+        B-->>A: ok
+        deactivate B
+    else failure
+        A->>B: retry
+    end
+    deactivate A`;
+
+// ─── Extended fix-diagram-error edge cases ────────────────────────────────────
+
+describe('Live Gemini API — fix-diagram-error edge cases', () => {
+  jest.setTimeout(120_000);
+
+  let skip = false;
+  let fixPromptTemplate: string;
+
+  beforeAll(async () => {
+    skip = !(await isLiveApiAvailable());
+    if (!skip) {
+      fixPromptTemplate = readFlowPrompt('fix-diagram-error.ts');
+    }
+  });
+
+  it('removes quotes from alt/else block headers', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(fixPromptTemplate, {
+      diagramCode: QUOTED_ALT_HEADERS,
+      errorMessage:
+        "Parse error: alt block header must be plain text, not quoted. " +
+        "Remove quotes from 'User is authenticated' and 'User is not authenticated'.",
+    });
+
+    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const fixedCode = stripFences(result.fixedCode ?? '');
+
+    // The fixed code should not have quotes wrapping alt/else headers
+    expect(fixedCode).toContain('sequenceDiagram');
+    expect(fixedCode).not.toMatch(/alt\s+"[^"]+"/);
+    expect(fixedCode).not.toMatch(/else\s+"[^"]+"/);
+  });
+
+  it('replaces smart/curly quotes with plain text in labels', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(fixPromptTemplate, {
+      diagramCode: SMART_QUOTES_DIAGRAM,
+      errorMessage:
+        "Parse error on lines 4-5: curly/smart quotes (\u201C\u201D) are not valid Mermaid syntax. " +
+        "Use plain text or standard straight quotes.",
+    });
+
+    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const fixedCode = stripFences(result.fixedCode ?? '');
+
+    expect(fixedCode).toContain('sequenceDiagram');
+    // Should have removed unicode curly quotes
+    expect(fixedCode).not.toContain('\u201C');
+    expect(fixedCode).not.toContain('\u201D');
+  });
+
+  it('uses "as" keyword to fix participant IDs containing spaces', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(fixPromptTemplate, {
+      diagramCode: ILLEGAL_PARTICIPANT_ID,
+      errorMessage:
+        'Participant/actor ID "Alice Smith" contains spaces which are illegal in a raw Mermaid ID. ' +
+        'Use a short plain ID with \'as\', e.g.: participant AliceSmith as "Alice Smith".',
+    });
+
+    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const fixedCode = stripFences(result.fixedCode ?? '');
+
+    expect(fixedCode).toContain('sequenceDiagram');
+    // Should use the "as" keyword for display names
+    expect(fixedCode).toMatch(/participant\s+\S+\s+as\s+/);
+  });
+
+  it('fixes a flowchart with a missing arrow between nodes', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(fixPromptTemplate, {
+      diagramCode: BROKEN_FLOWCHART,
+      errorMessage:
+        'Parse error on line 2: Missing arrow between nodes A and B. ' +
+        'Expected --> or --- between node definitions.',
+    });
+
+    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const fixedCode = stripFences(result.fixedCode ?? '');
+
+    expect(fixedCode).toMatch(/flowchart|graph/i);
+    // Should now have an arrow connecting A to B
+    expect(fixedCode).toMatch(/A.*-->.*B|B.*-->.*A/);
+    expect(fixedCode).toContain('-->');
+  });
+
+  it('fixes imbalanced activate/deactivate — adds missing deactivate B in failure branch', async () => {
+    if (skip) return;
+
+    const validation = validateMermaidSyntax(IMBALANCED_ACTIVATION);
+    const errorMessage = validation.errorMessage ??
+      "Activate/deactivate imbalance: 'activate B' in success branch has no matching " +
+      "'deactivate B' in the failure branch.";
+
+    const prompt = interpolatePrompt(fixPromptTemplate, {
+      diagramCode: IMBALANCED_ACTIVATION,
+      errorMessage,
+    });
+
+    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const fixedCode = stripFences(result.fixedCode ?? '');
+
+    expect(fixedCode).toContain('sequenceDiagram');
+    const fixedValidation = validateMermaidSyntax(fixedCode);
+    // The fixed output should have no unmatched activation errors
+    const activationErrors = fixedValidation.errors.filter(
+      e => e.message.includes("'activate") || e.message.includes("'deactivate")
+    );
+    expect(activationErrors).toHaveLength(0);
+  });
+});
+
+// ─── Extended enhance-diagram-with-llm edge cases ────────────────────────────
+
+describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
+  jest.setTimeout(120_000);
+
+  let skip = false;
+  let enhancePromptTemplate: string;
+
+  beforeAll(async () => {
+    skip = !(await isLiveApiAvailable());
+    if (!skip) {
+      enhancePromptTemplate = readFlowPrompt('enhance-diagram-with-llm.ts');
+    }
+  });
+
+  it('preserves the %%{init} theme block when enhancing a themed diagram', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(enhancePromptTemplate, {
+      diagramCode: THEMED_SEQUENCE,
+      enhancementPrompt: 'Add a third participant C that receives a message from B.',
+    });
+
+    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const enhanced = stripFences(result.enhancedDiagramCode ?? '');
+
+    // The original theme block must be preserved
+    expect(enhanced).toContain('%%{init:');
+    expect(enhanced).toContain('actorBkg');
+    expect(enhanced).toContain('sequenceDiagram');
+  });
+
+  it('does NOT add a theme block to an ER diagram', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(enhancePromptTemplate, {
+      diagramCode: VALID_ER_DIAGRAM,
+      enhancementPrompt: 'Add a DOCTOR entity that has a one-to-many relationship with APPOINTMENT.',
+    });
+
+    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const enhanced = stripFences(result.enhancedDiagramCode ?? '');
+
+    expect(enhanced).toContain('erDiagram');
+    expect(enhanced).toContain('DOCTOR');
+    // ER diagrams must NOT get a theme block
+    expect(enhanced).not.toContain('%%{init:');
+  });
+
+  it('preserves the flowchart diagram type when enhancing', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(enhancePromptTemplate, {
+      diagramCode: VALID_FLOWCHART_NO_THEME,
+      enhancementPrompt: 'Add a follow-up step after the Walk-in clinic node.',
+    });
+
+    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const enhanced = stripFences(result.enhancedDiagramCode ?? '');
+
+    expect(enhanced).toMatch(/flowchart|graph/i);
+    // Should have added a new node
+    expect(enhanced).toContain('E');
+    // No unclosed blocks
+    const validation = validateMermaidSyntax(enhanced);
+    expect(validation.errors).toHaveLength(0);
+  });
+
+  it('adds a theme block to an unthemed flowchart', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(enhancePromptTemplate, {
+      diagramCode: VALID_FLOWCHART_NO_THEME,
+      enhancementPrompt: 'Add a legend note at the bottom.',
+    });
+
+    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const enhanced = stripFences(result.enhancedDiagramCode ?? '');
+
+    expect(enhanced).toMatch(/flowchart|graph/i);
+    // Should have added a theme block since the original had none
+    expect(enhanced).toContain('%%{init:');
+  });
+
+  it('removes quotes from alt/else block headers when enhancing', async () => {
+    if (skip) return;
+
+    const prompt = interpolatePrompt(enhancePromptTemplate, {
+      diagramCode: QUOTED_ALT_HEADERS,
+      enhancementPrompt: 'Add a timeout branch after the failure branch.',
+    });
+
+    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const enhanced = stripFences(result.enhancedDiagramCode ?? '');
+
+    expect(enhanced).toContain('sequenceDiagram');
+    // Enhance should also clean up the quoted headers as part of the rules
+    expect(enhanced).not.toMatch(/alt\s+"[^"]+"/);
+    expect(enhanced).not.toMatch(/else\s+"[^"]+"/);
+  });
+});

@@ -46,6 +46,15 @@ describe('enhance-diagram-with-llm prompt rules', () => {
   it('retains BLOCK CLOSURE VERIFICATION rule', () => {
     expect(enhanceSource).toContain('BLOCK CLOSURE VERIFICATION');
   });
+
+  it('requires activate/deactivate balance on every alt/else branch', () => {
+    expect(enhanceSource).toContain('SEQUENCE DIAGRAM ACTIVATION BALANCE');
+    expect(enhanceSource).toMatch(/balance activate.*deactivate.*EVERY branch/i);
+  });
+
+  it('prohibits mixing shorthand arrow activation with explicit activate/deactivate', () => {
+    expect(enhanceSource).toMatch(/Do NOT mix shorthand arrow activation/i);
+  });
 });
 
 describe('generate-diagram-from-description prompt rules', () => {
