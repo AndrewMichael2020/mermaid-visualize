@@ -17,6 +17,13 @@ jest.mock('@/lib/mermaid-config', () => ({
   clearLastParseError: jest.fn(),
 }));
 
+// Mock the mermaid-validator to pass through parse errors unchanged
+jest.mock('@/lib/mermaid-validator', () => ({
+  buildDetailedErrorMessage: jest.fn((_code: string, parseError: string) =>
+    parseError || 'Invalid Mermaid syntax.'
+  ),
+}));
+
 // Mock the useToast hook
 jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTheme as useNextTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { initializeMermaid, getLastParseError, clearLastParseError } from "@/lib/mermaid-config";
+import { buildDetailedErrorMessage } from "@/lib/mermaid-validator";
 
 interface DiagramViewerProps {
   code: string;
@@ -59,8 +60,11 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
             const isValid = await mermaid.parse(code, { suppressErrors: true });
 
             if (isValid === false) {
-              // mermaid.parse() returned false — grab the captured error text
-              const errorMsg = getLastParseError() || 'Invalid Mermaid syntax.';
+              // mermaid.parse() returned false — build a detailed error using
+              // both the captured parse error and a structural analysis of the code.
+              const rawParseError = getLastParseError();
+              const errorMsg = buildDetailedErrorMessage(code, rawParseError);
+              console.error('[DiagramViewer] Parse failed. Detailed error:\n', errorMsg);
               await attemptAiFix(mermaid, code, errorMsg);
               return;
             }
@@ -70,8 +74,10 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
             setError(null);
             setFixState({ status: 'idle' });
           } catch (e: unknown) {
-            const errorMsg = e instanceof Error ? e.message : String(e);
-            console.error("Mermaid rendering error:", e);
+            const rawErrorMsg = e instanceof Error ? e.message : String(e);
+            // Enrich the raw render/parse error with structural analysis
+            const errorMsg = buildDetailedErrorMessage(code, rawErrorMsg);
+            console.error("Mermaid rendering error:", e, '\nDetailed error:\n', errorMsg);
             await attemptAiFix(mermaid, code, errorMsg);
           }
         } else if (viewerRef.current) {
@@ -124,7 +130,11 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
       try {
         clearLastParseError();
         const isValid = await mermaid.parse(fixedCode, { suppressErrors: true });
-        if (isValid === false) throw new Error(getLastParseError() || 'Fixed code still invalid.');
+        if (isValid === false) {
+          const detailedFixError = buildDetailedErrorMessage(fixedCode, getLastParseError());
+          console.error('[DiagramViewer] AI-fixed code still invalid:\n', detailedFixError);
+          throw new Error(detailedFixError);
+        }
 
         const { svg } = await mermaid.render("mermaid-fix-svg-" + Date.now(), fixedCode);
         if (viewerRef.current) viewerRef.current.innerHTML = svg;
