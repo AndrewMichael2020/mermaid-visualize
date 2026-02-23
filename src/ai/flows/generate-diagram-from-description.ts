@@ -29,15 +29,39 @@ const prompt = ai.definePrompt({
   input: {schema: GenerateDiagramInputSchema},
   output: {schema: GenerateDiagramOutputSchema},
   model: 'googleai/gemini-2.5-flash-lite',
-  prompt: `You are an expert in Mermaid syntax.
+  prompt: `You are an expert in Mermaid syntax targeting the Mermaid v10.9.1 Langium-based parser.
 
-  You will generate Mermaid code based on the user's description. Ensure the generated code is valid Mermaid code.
-  
-  IMPORTANT GUIDELINES:
-  1. If a node label contains special characters (like parentheses, brackets, or quotes), you MUST wrap the label in double quotes.
+  You will generate Mermaid code based on the user's description. Ensure the generated code is valid for Mermaid v10.9.1.
+
+  MERMAID v10.9.1 SYNTAX RULES (CRITICAL — follow these exactly to avoid parse errors):
+
+  1. UNIVERSAL QUOTING: Every human-readable label MUST be wrapped in double quotes whenever it:
+     - Follows a colon (:) in a message/label, e.g., A->>B: "My label"
+     - Appears as a logic-block header after alt, else, loop, opt, par, critical, break, or subgraph
+       e.g., alt "Access by phone" ... else "Access in person" ... end
+     - Appears inside a Note statement, e.g., Note over A,B: "Some text"
+     - Contains ANY space, parenthesis, slash (/), dash (-), ampersand (&), bracket, or other special character
+     Example: alt "Access by phone" is correct; alt Access by phone will cause a parse error.
+
+  2. ID/LABEL SEPARATION FOR PARTICIPANTS/ACTORS: Use short, plain IDs (no spaces or special characters) and
+     the "as" keyword to set human-readable display labels in double quotes.
+     Example: participant AD as "Admin (Support)"  — NOT: actor Admin (Support)
+     This prevents the parser from misinterpreting parentheses and slashes in participant names.
+
+  3. NO URLS OR MARKDOWN FORMATTING INSIDE NODES: Do not embed URLs, HTML tags (<a>, <b>), or Markdown
+     formatting (bold **, italics *) inside node labels or messages. If a reference is needed, add it as a
+     plain-text comment outside the diagram using %% (e.g., %% Source: example.com).
+
+  4. BLOCK CLOSURE VERIFICATION: Before outputting, count the number of alt, loop, opt, par, critical, break,
+     and subgraph keywords in the diagram. Ensure an exactly equal number of "end" keywords are present.
+     Missing or extra "end" keywords make the entire diagram unparseable.
+
+  5. NODE LABEL SPECIAL CHARACTERS: If a node label contains parentheses, brackets, or other special characters,
+     wrap the label in double quotes.
      Example: A["Node with (parentheses)"] --> B["Another Node"]
-  2. Ensure all brackets are properly closed.
-  3. THEMING AND COLORS: For all diagram types EXCEPT erDiagram (ER diagrams), include a theme initialization block at the very beginning of the code with colorful styling.
+
+  6. THEMING AND COLORS: For all diagram types EXCEPT erDiagram (ER diagrams), include a theme initialization
+     block at the very beginning of the code with colorful styling.
      
      For flowchart/graph, classDiagram, stateDiagram use:
      %%{init: {
@@ -79,7 +103,7 @@ const prompt = ai.definePrompt({
      
      For other diagram types (timeline, gantt, gitGraph, journey, mindmap, pie), use the flowchart themeVariables format as a base.
       
-  4. For erDiagram (ER diagrams), do NOT include any theme initialization block. Keep the code clean without styling.
+  7. For erDiagram (ER diagrams), do NOT include any theme initialization block. Keep the code clean without styling.
 
   Description: {{{description}}}`,
 });

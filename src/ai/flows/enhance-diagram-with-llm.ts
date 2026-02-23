@@ -30,16 +30,39 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
   input: {schema: EnhanceDiagramWithLLMInputSchema},
   output: {schema: EnhanceDiagramWithLLMOutputSchema},
   model: 'googleai/gemini-2.5-flash-lite',
-  prompt: `You are an expert in Mermaid diagrams.
+  prompt: `You are an expert in Mermaid diagrams targeting the Mermaid v10.9.1 Langium-based parser.
 
   The user will provide you with a Mermaid diagram code and a prompt describing desired enhancements.
   Your task is to enhance the diagram code based on the prompt.
 
   When the user asks to "add 'X' under 'Y'", you should interpret this as a hierarchical relationship. Create a new node for 'X' and draw a one-way arrow from 'Y' to 'X' (e.g., Y --> X). Do not create loops or bidirectional arrows unless specifically asked.
 
-  IMPORTANT THEMING GUIDELINES:
-  1. If the original diagram code contains a theme initialization block (%%{init: {...}}%%), PRESERVE it in your output.
-  2. If the original diagram does NOT have a theme block and the diagram type is NOT erDiagram (ER diagrams), ADD a theme initialization block at the beginning.
+  MERMAID v10.9.1 SYNTAX RULES (CRITICAL — apply to all new and existing content):
+
+  1. UNIVERSAL QUOTING: Every human-readable label MUST be wrapped in double quotes whenever it:
+     - Follows a colon (:) in a message/label, e.g., A->>B: "My label"
+     - Appears as a logic-block header after alt, else, loop, opt, par, critical, break, or subgraph
+       e.g., alt "Access by phone" ... else "Access in person" ... end
+     - Appears inside a Note statement, e.g., Note over A,B: "Some text"
+     - Contains ANY space, parenthesis, slash (/), dash (-), ampersand (&), bracket, or other special character
+     Example: alt "Access by phone" is correct; alt Access by phone will cause a parse error.
+
+  2. ID/LABEL SEPARATION FOR PARTICIPANTS/ACTORS: Use short, plain IDs (no spaces or special characters) and
+     the "as" keyword to set human-readable display labels in double quotes.
+     Example: participant AD as "Admin (Support)"  — NOT: actor Admin (Support)
+     This prevents the parser from misinterpreting parentheses and slashes in participant names.
+
+  3. NO URLS OR MARKDOWN FORMATTING INSIDE NODES: Do not embed URLs, HTML tags (<a>, <b>), or Markdown
+     formatting (bold **, italics *) inside node labels or messages. If a reference is needed, add it as a
+     plain-text comment outside the diagram using %% (e.g., %% Source: example.com).
+
+  4. BLOCK CLOSURE VERIFICATION: Before outputting, count the number of alt, loop, opt, par, critical, break,
+     and subgraph keywords in the diagram. Ensure an exactly equal number of "end" keywords are present.
+     Missing or extra "end" keywords make the entire diagram unparseable.
+
+  THEMING GUIDELINES:
+  5. If the original diagram code contains a theme initialization block (%%{init: {...}}%%), PRESERVE it in your output.
+  6. If the original diagram does NOT have a theme block and the diagram type is NOT erDiagram (ER diagrams), ADD a theme initialization block at the beginning.
      
      For flowchart/graph, classDiagram, stateDiagram use:
      %%{init: {
@@ -81,9 +104,9 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      
      For other diagram types (timeline, gantt, gitGraph, journey, mindmap, pie), use the flowchart themeVariables format as a base.
      
-  3. For erDiagram (ER diagrams), do NOT add or modify any theme blocks. Keep the code clean without styling.
-  4. If the user specifically requests color or theme changes, update the themeVariables accordingly.
-  5. You MAY also use classDef and class styling for flowcharts when appropriate.
+  7. For erDiagram (ER diagrams), do NOT add or modify any theme blocks. Keep the code clean without styling.
+  8. If the user specifically requests color or theme changes, update the themeVariables accordingly.
+  9. You MAY also use classDef and class styling for flowcharts when appropriate.
 
   Original Diagram Code:
   '''mermaid

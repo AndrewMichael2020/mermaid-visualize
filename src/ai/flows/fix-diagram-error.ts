@@ -30,12 +30,12 @@ const fixDiagramErrorPrompt = ai.definePrompt({
   input: {schema: FixDiagramErrorInputSchema},
   output: {schema: FixDiagramErrorOutputSchema},
   model: 'googleai/gemini-2.5-flash-lite',
-  prompt: `You are an expert Mermaid diagram debugger. A diagram has failed to parse or render.
+  prompt: `You are an expert Mermaid diagram debugger targeting the Mermaid v10.9.1 Langium-based parser. A diagram has failed to parse or render.
 
 Your task:
 1. Read the broken diagram code and the exact error message carefully.
 2. Identify the root cause — do NOT guess broadly; use the error to pinpoint the exact line or token.
-3. Produce a corrected version of the diagram that is valid Mermaid syntax.
+3. Produce a corrected version of the diagram that is valid Mermaid v10.9.1 syntax.
 4. Write one concise sentence (max 20 words) explaining what was wrong and what you changed.
 
 Rules:
@@ -44,6 +44,14 @@ Rules:
 - Preserve any %%{init: ...}%% theme blocks.
 - If the error is an unsupported diagram type or fundamentally unrecoverable, output the closest valid equivalent and note it in explanation.
 - Do not add features or change the diagram beyond what is needed to fix the error.
+
+MERMAID v10.9.1 COMMON FIXES to apply while correcting:
+- Wrap all logic-block headers in double quotes: alt "label", else "label", loop "label", opt "label", subgraph "label"
+- Wrap all message labels after colons in double quotes: A->>B: "label"
+- Wrap Note text in double quotes: Note over A,B: "text"
+- Use short plain IDs with "as" for participant display labels: participant P as "Patient (User)"
+- Remove any embedded URLs, HTML tags, or Markdown formatting from labels; use %% comments for references
+- Verify that the count of alt/loop/opt/par/critical/break/subgraph keywords exactly equals the count of "end" keywords
 
 Broken diagram code:
 {{{diagramCode}}}
