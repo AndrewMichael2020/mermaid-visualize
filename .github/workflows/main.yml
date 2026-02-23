@@ -1,0 +1,219 @@
+name: CI & Deploy (Consolidated)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  ci:
+    name: CI — lint, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate required deploy secrets
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          missing=()
+          # These come from repository secrets (PROJECT/SERVICE/DEFAULT_REGION are set via env from secrets)
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then missing+=("GCP_SA_KEY"); fi
+          if [ -z "${{ secrets.GCP_PROJECT }}" ]; then missing+=("GCP_PROJECT"); fi
+          if [ -z "${{ secrets.CLOUD_RUN_SERVICE }}" ]; then missing+=("CLOUD_RUN_SERVICE"); fi
+          if [ -z "${{ secrets.CLOUD_RUN_REGION }}" ]; then missing+=("CLOUD_RUN_REGION"); fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets: ${missing[*]}"; exit 1;
+          fi
+          echo "All required base secrets present."
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ESLint (via npm script)
+        run: npm run lint -- --max-warnings 0
+        continue-on-error: true
+      - name: Run TypeScript type check
+        run: npm run typecheck
+        continue-on-error: true
+      - name: Run tests with coverage
+        run: npm run test -- --ci --coverage
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: ci
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: ${{ secrets.GCP_PROJECT }}
+      SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
+      DEFAULT_REGION: ${{ secrets.CLOUD_RUN_REGION }}
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      SECRETS_TO_CHECK: |
+        NEXT_PUBLIC_FIREBASE_API_KEY
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        NEXT_PUBLIC_FIREBASE_APP_ID
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+        GEMINI_API_KEY
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Debug GCP credentials file
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          echo "--- BEGIN DEBUG: secrets.GCP_SA_KEY (first 200 chars) ---"
+          # Print a prefix only to avoid leaking the full key in logs unintentionally
+          echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\r' | head -c 200 || true
+          echo "\n--- END DEBUG PREFIX ---\n"
+          echo "Credentials file path: ${GOOGLE_APPLICATION_CREDENTIALS:-<not-set>}"
+          if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "--- BEGIN CREDENTIALS FILE (first 200 chars) ---"
+            head -c 200 "$GOOGLE_APPLICATION_CREDENTIALS" || true
+            echo "\n--- END CREDENTIALS FILE PREFIX ---"
+            ls -l "$GOOGLE_APPLICATION_CREDENTIALS" || true
+          else
+            echo "Credentials file not found or GOOGLE_APPLICATION_CREDENTIALS not set"
+          fi
+          echo "Environment variables containing 'GOOGLE' or 'CLOUD':"
+          env | grep -iE 'google|cloud' || true
+
+      - name: Force-activate service account (explicit)
+        run: |
+          set -euo pipefail
+          if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "Activating service account using key file..."
+            gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" --project="$PROJECT" || {
+              echo "gcloud auth activate-service-account failed; dumping credentials file head:"; head -c 200 "$GOOGLE_APPLICATION_CREDENTIALS" || true; exit 1;
+            }
+            echo "After activate, gcloud auth list:"; gcloud auth list || true
+          else
+            echo "No credentials file to activate: $GOOGLE_APPLICATION_CREDENTIALS"; exit 1
+          fi
+
+      - name: Verify gcloud authentication (debug)
+        run: |
+          set -euo pipefail
+          gcloud --version
+          acct=$(gcloud auth list --format='value(account)' || true)
+          if [ -z "$acct" ]; then
+            echo "::error::No active gcloud account. Check GCP_SA_KEY."
+            exit 1
+          fi
+          echo "Active account: $acct"
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Configure gcloud defaults
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT"
+          gcloud config set run/region "$DEFAULT_REGION"
+      - name: Verify required secrets exist
+        run: |
+          set -euo pipefail
+          IFS=$'\n' read -r -d '' -a secrets <<< "${{ env.SECRETS_TO_CHECK }}" 2>/dev/null || true
+          missing=()
+          for s in "${secrets[@]}"; do
+            s=$(echo "$s" | xargs); [ -z "$s" ] && continue
+            val="${!s:-}"
+            if [ -n "$val" ]; then
+              echo "Repo secret present for $s"
+              continue
+            fi
+            if ! gcloud secrets describe "$s" --project "$PROJECT" >/dev/null 2>&1; then
+              missing+=("$s")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning::Missing secrets: ${missing[*]}"
+          else
+            echo "All runtime secrets resolved."
+          fi
+      - name: Configure Docker for GCR
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker --quiet
+      - name: Build and push image (Docker)
+        id: build_image
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_SHA:0:7}"
+          IMAGE_TAG="gcr.io/${PROJECT}/${SERVICE}:${TAG}"
+          IMAGE_LATEST="gcr.io/${PROJECT}/${SERVICE}:latest"
+          echo "Building image: $IMAGE_TAG"
+          docker build -t "$IMAGE_TAG" -t "$IMAGE_LATEST" .
+          echo "Pushing images to GCR..."
+          docker push "$IMAGE_TAG"
+          docker push "$IMAGE_LATEST"
+          echo "Getting image digest..."
+          DIGEST=$(gcloud container images describe "$IMAGE_TAG" --format='get(image_summary.digest)')
+          echo "IMAGE_DIGEST=gcr.io/${PROJECT}/${SERVICE}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Successfully pushed: $IMAGE_TAG"
+      - name: Deploy to Cloud Run
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.build_image.outputs.IMAGE_DIGEST }}"
+          echo "Deploying $SERVICE with $IMAGE"
+          secret_args=()
+          IFS=$'\n' read -r -d '' -a secrets <<< "${{ env.SECRETS_TO_CHECK }}" 2>/dev/null || true
+          for s in "${secrets[@]}"; do
+            s=$(echo "$s" | xargs); [ -z "$s" ] && continue
+            secret_args+=("--update-secrets" "$s=$s:latest")
+          done
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "$DEFAULT_REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10 \
+            "${secret_args[@]}"
+      - name: Get Cloud Run Service URL
+        id: service_url
+        run: |
+          set -euo pipefail
+          url=$(gcloud run services describe "$SERVICE" --region "$DEFAULT_REGION" --format='value(status.url)')
+          echo "service_url=$url" >> "$GITHUB_OUTPUT"
+          echo "URL: $url"
+      - name: Health check
+        env:
+          SERVICE_URL: ${{ steps.service_url.outputs.service_url }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 5); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL" || echo "000")
+            echo "Attempt $i: $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::warning::Non-200 after retries."
