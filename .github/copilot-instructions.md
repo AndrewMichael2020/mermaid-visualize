@@ -18,6 +18,5 @@ cat > /workspaces/mermaid-vizualizer/.github/copilot-instructions.md << 'EOF'
 
 ## Required Secrets
 - GCP_SA_KEY
-- NEXT_PUBLIC_FIREBASE_* (API key, project ID, app ID, auth domain, storage bucket, messaging sender ID)
 - GEMINI_API_KEY
 EOF

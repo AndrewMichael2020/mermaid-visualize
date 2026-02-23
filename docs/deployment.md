@@ -1,6 +1,6 @@
 # Deployment Guide: Mermaid Cloud Viz on Cloud Run
 
-This document provides step-by-step instructions to deploy the Mermaid Cloud Viz application to Cloud Run. No Firebase dependencies — auth via Google OAuth2 (next-auth), logs in Cloud Datastore, metrics via Cloud Monitoring.
+This document provides step-by-step instructions to deploy the Mermaid Cloud Viz application to Cloud Run. Auth via Google OAuth2 (next-auth), logs in Cloud Datastore, metrics via Cloud Monitoring.
 
 ## Table of Contents
 

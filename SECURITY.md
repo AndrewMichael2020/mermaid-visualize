@@ -15,9 +15,9 @@ As this project is in early development (v0.1.x), we maintain security support f
 This project follows security best practices including:
 
 - **Dependency Management**: Regular dependency audits via `npm audit` in CI/CD pipelines
-- **Secret Management**: All sensitive configuration (API keys, Firebase credentials) are managed through environment variables and GitHub Secrets, never committed to source code
+- **Secret Management**: All sensitive configuration (API keys, credentials) are managed through GCP Secret Manager, environment variables, and GitHub Secrets, never committed to source code
 - **Authentication**: Application access is secured via Google Authentication
-- **Infrastructure**: Deployed on Firebase App Hosting with Cloud Run backend, leveraging Google Cloud's security infrastructure
+- **Infrastructure**: Deployed on Google Cloud Run, leveraging Google Cloud's security infrastructure
 - **Code Quality**: Automated linting, type checking, and testing on all pull requests
 
 ## Reporting a Vulnerability
@@ -56,7 +56,6 @@ Security updates are released as patch versions. Subscribe to repository release
 
 This project uses the following key dependencies that handle sensitive operations:
 
-- **Firebase SDK**: Authentication and cloud services
 - **Genkit AI**: AI-powered features with Google's Gemini API
 - **Next.js**: Server-side rendering and API routes
 

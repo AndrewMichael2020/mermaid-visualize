@@ -81,49 +81,6 @@ jobs:
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-      - name: Debug GCP credentials file
-        if: ${{ always() }}
-        run: |
-          set -euo pipefail
-          echo "--- BEGIN DEBUG: secrets.GCP_SA_KEY (first 200 chars) ---"
-          # Print a prefix only to avoid leaking the full key in logs unintentionally
-          echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\r' | head -c 200 || true
-          echo "\n--- END DEBUG PREFIX ---\n"
-          echo "Credentials file path: ${GOOGLE_APPLICATION_CREDENTIALS:-<not-set>}"
-          if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-            echo "--- BEGIN CREDENTIALS FILE (first 200 chars) ---"
-            head -c 200 "$GOOGLE_APPLICATION_CREDENTIALS" || true
-            echo "\n--- END CREDENTIALS FILE PREFIX ---"
-            ls -l "$GOOGLE_APPLICATION_CREDENTIALS" || true
-          else
-            echo "Credentials file not found or GOOGLE_APPLICATION_CREDENTIALS not set"
-          fi
-          echo "Environment variables containing 'GOOGLE' or 'CLOUD':"
-          env | grep -iE 'google|cloud' || true
-
-      - name: Force-activate service account (explicit)
-        run: |
-          set -euo pipefail
-          if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-            echo "Activating service account using key file..."
-            gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" --project="$PROJECT" || {
-              echo "gcloud auth activate-service-account failed; dumping credentials file head:"; head -c 200 "$GOOGLE_APPLICATION_CREDENTIALS" || true; exit 1;
-            }
-            echo "After activate, gcloud auth list:"; gcloud auth list || true
-          else
-            echo "No credentials file to activate: $GOOGLE_APPLICATION_CREDENTIALS"; exit 1
-          fi
-
-      - name: Verify gcloud authentication (debug)
-        run: |
-          set -euo pipefail
-          gcloud --version
-          acct=$(gcloud auth list --format='value(account)' || true)
-          if [ -z "$acct" ]; then
-            echo "::error::No active gcloud account. Check GCP_SA_KEY."
-            exit 1
-          fi
-          echo "Active account: $acct"
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       - name: Configure gcloud defaults
