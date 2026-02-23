@@ -26,6 +26,9 @@ export interface MermaidValidationResult {
 
 const BLOCK_OPENERS = /^\s*(alt|opt|loop|par|critical|break|subgraph)\b/;
 const BLOCK_ENDER = /^\s*end\s*$/i;
+// Branch separators that start a new path within the same enclosing block
+// (else in alt, and in par, option in critical)
+const BRANCH_SEPARATOR_RE = /^\s*(else|and|option)\b/;
 const ACTIVATE_RE = /^\s*activate\s+(\S+)/;
 const DEACTIVATE_RE = /^\s*deactivate\s+(\S+)/;
 // Detect participant/actor lines whose raw ID contains spaces or special characters
@@ -39,12 +42,43 @@ const DEACTIVATE_RE = /^\s*deactivate\s+(\S+)/;
 const PARTICIPANT_ILLEGAL_ID_RE =
   /^\s*(?:participant|actor)\s+(\S[^\n"']*?\s+[^\s"']+)\s*$/;
 
+/** Deep-copy an activation state map so snapshots are independent. */
+function deepCopyState(state: Map<string, number[]>): Map<string, number[]> {
+  const copy = new Map<string, number[]>();
+  for (const [k, v] of state) copy.set(k, [...v]);
+  return copy;
+}
+
+/**
+ * Merge multiple branch end-states by taking the union: for each participant,
+ * keep the longest activation stack seen across all branches.  This reflects
+ * "possibly active" semantics — if a participant is still active on *any*
+ * branch path, it should not be flagged as a false deactivate error after the
+ * block closes.
+ */
+function mergeStates(states: Array<Map<string, number[]>>): Map<string, number[]> {
+  const merged = new Map<string, number[]>();
+  for (const state of states) {
+    for (const [p, lines] of state) {
+      const current = merged.get(p) ?? [];
+      if (lines.length > current.length) merged.set(p, [...lines]);
+    }
+  }
+  return merged;
+}
+
 export function validateMermaidSyntax(code: string): MermaidValidationResult {
   const lines = code.split('\n');
   const errors: MermaidValidationError[] = [];
 
-  // Stack of open blocks: { keyword, line }
-  const blockStack: Array<{ keyword: string; line: number }> = [];
+  // Stack of open blocks, each carrying the activation snapshot taken at open
+  // time and the accumulated end-of-branch states for post-block merging.
+  const blockStack: Array<{
+    keyword: string;
+    line: number;
+    stateAtOpen: Map<string, number[]>;
+    branchEndStates: Array<Map<string, number[]>>;
+  }> = [];
 
   // Map participant → stack of line numbers where it was activated (unmatched)
   const activationStack = new Map<string, number[]>();
@@ -59,7 +93,26 @@ export function validateMermaidSyntax(code: string): MermaidValidationResult {
     // ── Block openers ─────────────────────────────────────────────────────────
     const openerMatch = BLOCK_OPENERS.exec(trimmed);
     if (openerMatch) {
-      blockStack.push({ keyword: openerMatch[1], line: lineNum });
+      blockStack.push({
+        keyword: openerMatch[1],
+        line: lineNum,
+        stateAtOpen: deepCopyState(activationStack),
+        branchEndStates: [],
+      });
+    }
+
+    // ── Branch separators (else / and / option) ───────────────────────────────
+    // Each separator ends the current branch and starts a new one from the
+    // same activation state that existed at the enclosing block's open.
+    if (BRANCH_SEPARATOR_RE.test(trimmed) && blockStack.length > 0) {
+      const frame = blockStack[blockStack.length - 1];
+      // Save the end-state of the branch that just finished
+      frame.branchEndStates.push(deepCopyState(activationStack));
+      // Restore activation state to what it was at the start of this block
+      activationStack.clear();
+      for (const [p, lines_] of frame.stateAtOpen) {
+        activationStack.set(p, [...lines_]);
+      }
     }
 
     // ── Block ender ───────────────────────────────────────────────────────────
@@ -72,7 +125,16 @@ export function validateMermaidSyntax(code: string): MermaidValidationResult {
             `critical/break/subgraph block is open.`,
         });
       } else {
-        blockStack.pop();
+        const frame = blockStack.pop()!;
+        // Save the final branch end-state
+        frame.branchEndStates.push(deepCopyState(activationStack));
+        // Merge all branch end-states into the current activation state so
+        // that any participant still active on any branch path is kept.
+        const merged = mergeStates(frame.branchEndStates);
+        activationStack.clear();
+        for (const [p, lineNums_] of merged) {
+          if (lineNums_.length > 0) activationStack.set(p, lineNums_);
+        }
       }
     }
 

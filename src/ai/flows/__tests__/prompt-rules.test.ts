@@ -96,6 +96,14 @@ describe('fix-diagram-error prompt rules', () => {
     expect(fixSource).toMatch(/smart quotes/i);
   });
 
+  it('instructs about activate/deactivate balance per branch in alt/else blocks', () => {
+    expect(fixSource).toMatch(/balance activate.*deactivate.*branch/i);
+  });
+
+  it('prohibits mixing shorthand arrow activation with explicit activate/deactivate', () => {
+    expect(fixSource).toMatch(/Do not mix shorthand.*activate/i);
+  });
+
   it('retains participant aliasing with "as" keyword rule', () => {
     expect(fixSource).toContain('participant P as');
   });
