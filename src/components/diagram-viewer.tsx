@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Download, Share2 } from "lucide-react";
+import { Download, Loader2, Share2, WrenchIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme as useNextTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { initializeMermaid } from "@/lib/mermaid-config";
+import { initializeMermaid, getLastParseError, clearLastParseError } from "@/lib/mermaid-config";
 
 interface DiagramViewerProps {
   code: string;
@@ -31,6 +31,15 @@ const darkThemeVariables = {
 export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: DiagramViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  type FixState =
+    | { status: 'idle' }
+    | { status: 'fixing' }
+    | { status: 'fixed'; explanation: string; originalError: string }
+    | { status: 'failed'; fixedCode: string; explanation: string; originalError: string };
+
+  const [fixState, setFixState] = useState<FixState>({ status: 'idle' });
+
   const { toast } = useToast();
   const { resolvedTheme } = useNextTheme();
 
@@ -39,7 +48,6 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
   useEffect(() => {
     const renderDiagram = async () => {
       try {
-        // Use centralized mermaid configuration with error suppression
         const mermaid = await initializeMermaid({
           theme: isDark ? 'dark' : 'default',
           themeVariables: isDark ? darkThemeVariables : undefined,
@@ -47,43 +55,82 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
 
         if (viewerRef.current && code) {
           try {
-            // Validate code before rendering to prevent bomb widget from appearing
+            clearLastParseError();
             const isValid = await mermaid.parse(code, { suppressErrors: true });
+
             if (isValid === false) {
-              setError("Invalid Mermaid syntax. Please check your code.");
-              if (viewerRef.current) {
-                viewerRef.current.innerHTML = '';
-              }
+              // mermaid.parse() returned false — grab the captured error text
+              const errorMsg = getLastParseError() || 'Invalid Mermaid syntax.';
+              await attemptAiFix(mermaid, code, errorMsg);
               return;
             }
-            
-            const { svg } = await mermaid.render(
-              "mermaid-svg-" + Date.now(),
-              code // Preserve classDef/class styling
-            );
-            
-            if (viewerRef.current) {
-              viewerRef.current.innerHTML = svg;
-            }
+
+            const { svg } = await mermaid.render("mermaid-svg-" + Date.now(), code);
+            if (viewerRef.current) viewerRef.current.innerHTML = svg;
             setError(null);
-          } catch(e: unknown) {
-            const errorMessage = e instanceof Error ? e.message : String(e);
+            setFixState({ status: 'idle' });
+          } catch (e: unknown) {
+            const errorMsg = e instanceof Error ? e.message : String(e);
             console.error("Mermaid rendering error:", e);
-            setError(errorMessage || "Invalid Mermaid syntax. Please check your code.");
-            if (viewerRef.current) {
-              viewerRef.current.innerHTML = '';
-            }
+            await attemptAiFix(mermaid, code, errorMsg);
           }
         } else if (viewerRef.current) {
           viewerRef.current.innerHTML = '';
           setError(null);
+          setFixState({ status: 'idle' });
         }
       } catch (e) {
         console.error(e);
         setError("An unexpected error occurred while rendering the diagram.");
-        if (viewerRef.current) {
-            viewerRef.current.innerHTML = '';
+        setFixState({ status: 'idle' });
+        if (viewerRef.current) viewerRef.current.innerHTML = '';
+      }
+    };
+
+    /** One-shot AI fix attempt. Never called recursively. */
+    const attemptAiFix = async (
+      mermaid: Awaited<ReturnType<typeof initializeMermaid>>,
+      brokenCode: string,
+      errorMsg: string,
+    ) => {
+      if (viewerRef.current) viewerRef.current.innerHTML = '';
+      setError(null);
+      setFixState({ status: 'fixing' });
+
+      let fixedCode = '';
+      let explanation = 'AI could not determine the cause.';
+
+      try {
+        const res = await fetch('/api/fix-diagram-error', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ diagramCode: brokenCode, errorMessage: errorMsg }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          fixedCode = data.fixedCode ?? '';
+          explanation = data.explanation ?? explanation;
         }
+      } catch (fetchErr) {
+        console.error('fix-diagram-error fetch failed:', fetchErr);
+      }
+
+      if (!fixedCode) {
+        setFixState({ status: 'failed', fixedCode: brokenCode, explanation, originalError: errorMsg });
+        return;
+      }
+
+      // One attempt to render the AI fix — no further recursion
+      try {
+        clearLastParseError();
+        const isValid = await mermaid.parse(fixedCode, { suppressErrors: true });
+        if (isValid === false) throw new Error(getLastParseError() || 'Fixed code still invalid.');
+
+        const { svg } = await mermaid.render("mermaid-fix-svg-" + Date.now(), fixedCode);
+        if (viewerRef.current) viewerRef.current.innerHTML = svg;
+        setFixState({ status: 'fixed', explanation, originalError: errorMsg });
+      } catch {
+        setFixState({ status: 'failed', fixedCode, explanation, originalError: errorMsg });
       }
     };
 
@@ -203,11 +250,50 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme }: 
       </CardHeader>
       <CardContent className={cn("flex-1 p-4 overflow-auto relative flex items-center justify-center transition-colors", isDark ? 'bg-[#1a1a1a]' : 'bg-muted/30')}>
         <div ref={viewerRef} className="w-full h-full [&>svg]:max-w-full [&>svg]:h-auto" />
-        {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/10 p-4 text-center">
-                <p className="font-bold text-destructive">Diagram Error</p>
-                <pre className="mt-2 text-xs text-destructive bg-destructive/20 p-2 rounded-md whitespace-pre-wrap w-full max-w-md">{error}</pre>
+
+        {/* Spinner while AI fix is in progress */}
+        {fixState.status === 'fixing' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm">
+            <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">AI is attempting to fix the diagram…</p>
+          </div>
+        )}
+
+        {/* Success banner when AI fixed it */}
+        {fixState.status === 'fixed' && (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-3 py-1.5 text-xs text-green-700 dark:text-green-400 shadow-sm max-w-xs">
+            <WrenchIcon className="h-3.5 w-3.5 shrink-0" />
+            <span><strong>Auto-corrected:</strong> {fixState.explanation}</span>
+          </div>
+        )}
+
+        {/* Rich error panel when AI fix also failed */}
+        {fixState.status === 'failed' && (
+          <div className="absolute inset-0 flex flex-col gap-3 overflow-auto bg-destructive/5 p-5 text-sm">
+            <div className="flex items-center gap-2 font-bold text-destructive">
+              <WrenchIcon className="h-4 w-4 shrink-0" />
+              Diagram Error — AI fix unsuccessful
             </div>
+
+            <div>
+              <p className="mb-1 font-semibold text-destructive/80">Original error:</p>
+              <pre className="rounded-md bg-destructive/10 p-2 text-xs whitespace-pre-wrap text-destructive">{fixState.originalError}</pre>
+            </div>
+
+            <div className="rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 p-3 text-amber-800 dark:text-amber-300">
+              <p className="font-semibold">What AI tried:</p>
+              <p className="mt-0.5 text-xs">{fixState.explanation}</p>
+            </div>
+
+            <div>
+              <p className="mb-1 font-semibold text-muted-foreground">AI&apos;s attempted code (also invalid):</p>
+              <pre className="rounded-md bg-muted p-2 text-xs whitespace-pre-wrap text-muted-foreground max-h-48 overflow-auto">{fixState.fixedCode}</pre>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Edit the code in the editor to correct the syntax manually.
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

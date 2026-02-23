@@ -15,12 +15,23 @@ import type { MermaidConfig } from "mermaid";
 let mermaidInstance: typeof import("mermaid").default | null = null;
 
 /**
- * Custom parse error handler that logs errors to console without injecting DOM elements.
- * This prevents Mermaid's default "bomb" widget from appearing on syntax errors.
+ * Custom parse error handler that captures the error message for programmatic use
+ * while suppressing Mermaid's default DOM injection ("bomb" widget).
  */
+let _lastParseError = '';
+
+/** The most recent Mermaid parse error message. Reset to '' on a successful render. */
+export function getLastParseError(): string {
+  return _lastParseError;
+}
+export function clearLastParseError(): void {
+  _lastParseError = '';
+}
+
 const suppressedParseErrorHandler = (err: unknown) => {
+  _lastParseError = err instanceof Error ? err.message : String(err);
   console.error("Mermaid parse error:", err);
-  // No-op: prevent Mermaid from injecting its own error UI
+  // No-op beyond logging: prevent Mermaid from injecting its own error UI
 };
 
 /**

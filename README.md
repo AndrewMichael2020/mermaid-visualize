@@ -2,6 +2,23 @@
 
 [![Build & Deploy](https://github.com/AndrewMichael2020/mermaid-visualize/actions/workflows/main.yml/badge.svg)](https://github.com/AndrewMichael2020/mermaid-visualize/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Node.js 20](https://img.shields.io/badge/node-20-brightgreen?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+
+[![Deployed on Cloud Run](https://img.shields.io/badge/Cloud_Run-deployed-4285F4?logo=google-cloud&logoColor=white)](https://mermaid-vizualizer-536375482650.us-central1.run.app)
+[![GCP Secret Manager](https://img.shields.io/badge/Secrets-GCP_Secret_Manager-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/secret-manager)
+[![Docker](https://img.shields.io/badge/Docker-containerised-2496ED?logo=docker&logoColor=white)](./Dockerfile)
+[![AI Powered](https://img.shields.io/badge/AI-Google_Gemini-8E44FF?logo=google&logoColor=white)](https://ai.google.dev)
+[![Genkit](https://img.shields.io/badge/Genkit-AI_framework-FF6F00?logo=firebase&logoColor=white)](https://firebase.google.com/docs/genkit)
+
+[![Tests](https://img.shields.io/badge/tests-32_passing-brightgreen?logo=jest&logoColor=white)](./jest.config.js)
+[![Coverage](https://img.shields.io/badge/coverage-76%25-yellow?logo=jest&logoColor=white)](./coverage)
+[![0 Vulnerabilities](https://img.shields.io/badge/vulnerabilities-0-brightgreen?logo=snyk&logoColor=white)](./package.json)
+[![ESLint](https://img.shields.io/badge/ESLint-passing-4B32C3?logo=eslint&logoColor=white)](./eslint.config.cjs)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-components-000000?logo=radixui&logoColor=white)](https://ui.shadcn.com)
 
 **Turn plain English into professional diagrams — instantly.**
 

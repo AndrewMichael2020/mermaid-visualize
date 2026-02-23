@@ -13,6 +13,8 @@ jest.mock('@/lib/mermaid-config', () => ({
     render: mockRender,
     initialize: mockInitialize,
   })),
+  getLastParseError: jest.fn().mockReturnValue(''),
+  clearLastParseError: jest.fn(),
 }));
 
 // Mock the useToast hook
