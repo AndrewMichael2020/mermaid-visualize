@@ -39,9 +39,9 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
 
   MERMAID v10.9.1 SYNTAX RULES (CRITICAL — apply to all new and existing content):
 
-  1. MINIMALIST QUOTING (STRICT): To prevent parse errors in Mermaid v10.9.1, follow these rules exactly:
-     - DO NOT wrap alt, else, loop, opt, par, critical, break, or subgraph block headers in quotes.
-       Use plain text labels: e.g., alt Access via Phone ... else Access in Person ... end
+  1. QUOTING RULES: To prevent parse errors in Mermaid v10.9.1, follow these rules exactly:
+     - alt, else, loop, opt, par, critical, break, and subgraph block headers MAY be plain text or
+       quoted. Either form is valid: alt User is authenticated  OR  alt "User is authenticated"
      - DO NOT wrap message labels after a colon in quotes.
        e.g., A->>B: Request Care  (NOT: A->>B: "Request Care")
      - STRIP SPECIAL CHARACTERS: Remove parentheses (), slashes /, and backslashes \ from all labels.

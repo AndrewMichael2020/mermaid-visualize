@@ -404,7 +404,9 @@ describe('Live Gemini API — enhance-diagram-with-llm flow', () => {
 
 // ─── Additional edge-case fixtures ───────────────────────────────────────────
 
-// Sequence diagram where alt/else block headers are quoted (Mermaid v10 parse error).
+// Sequence diagram where alt/else block headers are quoted.
+// NOTE: This IS valid Mermaid v10.9.1 syntax — both plain and quoted headers render correctly.
+// Used here to test that the enhance flow can add branches to a diagram that uses quoted headers.
 const QUOTED_ALT_HEADERS = `sequenceDiagram
     participant A
     participant B
@@ -487,25 +489,6 @@ describe('Live Gemini API — fix-diagram-error edge cases', () => {
     if (!skip) {
       fixPromptTemplate = readFlowPrompt('fix-diagram-error.ts');
     }
-  });
-
-  it('removes quotes from alt/else block headers', async () => {
-    if (skip) return;
-
-    const prompt = interpolatePrompt(fixPromptTemplate, {
-      diagramCode: QUOTED_ALT_HEADERS,
-      errorMessage:
-        "Parse error: alt block header must be plain text, not quoted. " +
-        "Remove quotes from 'User is authenticated' and 'User is not authenticated'.",
-    });
-
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
-    const fixedCode = stripFences(result.fixedCode ?? '');
-
-    // The fixed code should not have quotes wrapping alt/else headers
-    expect(fixedCode).toContain('sequenceDiagram');
-    expect(fixedCode).not.toMatch(/alt\s+"[^"]+"/);
-    expect(fixedCode).not.toMatch(/else\s+"[^"]+"/);
   });
 
   it('replaces smart/curly quotes with plain text in labels', async () => {
@@ -674,9 +657,11 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
     expect(enhanced).toContain('%%{init:');
   });
 
-  it('removes quotes from alt/else block headers when enhancing', async () => {
+  it('enhances a diagram that uses quoted alt/else block headers', async () => {
     if (skip) return;
 
+    // Quoted alt/else headers are VALID Mermaid v10.9.1 syntax (confirmed by app rendering).
+    // The enhance flow must be able to add branches to such a diagram without breaking it.
     const prompt = interpolatePrompt(enhancePromptTemplate, {
       diagramCode: QUOTED_ALT_HEADERS,
       enhancementPrompt: 'Add a timeout branch after the failure branch.',
@@ -686,8 +671,11 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).toContain('sequenceDiagram');
-    // Enhance should also clean up the quoted headers as part of the rules
-    expect(enhanced).not.toMatch(/alt\s+"[^"]+"/);
-    expect(enhanced).not.toMatch(/else\s+"[^"]+"/);
+    // A new else/timeout branch should have been added
+    expect(enhanced).toMatch(/else|timeout/i);
+    // The block must be properly closed
+    const validation = validateMermaidSyntax(enhanced);
+    const blockErrors = validation.errors.filter(e => e.message.includes("Unclosed 'alt'"));
+    expect(blockErrors).toHaveLength(0);
   });
 });

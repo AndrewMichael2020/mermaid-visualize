@@ -1,7 +1,9 @@
 /**
- * Tests to verify that the AI flow prompts use minimalist quoting rules
- * (no double-quoting of alt/else/loop/opt block headers or message labels)
+ * Tests to verify that the AI flow prompts use correct quoting rules
  * and include the required sanitization and smart-quote prohibition rules.
+ *
+ * NOTE: Quoted alt/else/loop/opt block headers (e.g. alt "label") are VALID
+ * Mermaid v10.9.1 syntax and the prompts must NOT prohibit them.
  */
 
 // Read the source files directly to verify prompt content
@@ -15,13 +17,14 @@ const generateSource = fs.readFileSync(path.join(flowsDir, 'generate-diagram-fro
 const fixSource = fs.readFileSync(path.join(flowsDir, 'fix-diagram-error.ts'), 'utf8');
 
 describe('enhance-diagram-with-llm prompt rules', () => {
-  it('uses MINIMALIST QUOTING instead of UNIVERSAL QUOTING', () => {
-    expect(enhanceSource).toContain('MINIMALIST QUOTING');
-    expect(enhanceSource).not.toContain('UNIVERSAL QUOTING');
+  it('contains QUOTING RULES section', () => {
+    expect(enhanceSource).toContain('QUOTING RULES');
   });
 
-  it('instructs not to wrap alt/else/loop/opt block headers in quotes', () => {
-    expect(enhanceSource).toMatch(/DO NOT wrap alt.*block headers in quotes/i);
+  it('allows quoted block headers (both plain and quoted forms are valid)', () => {
+    // Must NOT assert that quoted alt/else/loop/opt headers are forbidden —
+    // the Mermaid v10.9.1 Langium parser accepts both forms.
+    expect(enhanceSource).not.toMatch(/DO NOT wrap alt.*block headers in quotes/i);
   });
 
   it('instructs not to wrap message labels after colons in quotes', () => {
@@ -58,13 +61,12 @@ describe('enhance-diagram-with-llm prompt rules', () => {
 });
 
 describe('generate-diagram-from-description prompt rules', () => {
-  it('uses MINIMALIST QUOTING instead of UNIVERSAL QUOTING', () => {
-    expect(generateSource).toContain('MINIMALIST QUOTING');
-    expect(generateSource).not.toContain('UNIVERSAL QUOTING');
+  it('contains QUOTING RULES section', () => {
+    expect(generateSource).toContain('QUOTING RULES');
   });
 
-  it('instructs not to wrap alt/else/loop/opt block headers in quotes', () => {
-    expect(generateSource).toMatch(/DO NOT wrap alt.*block headers in quotes/i);
+  it('allows quoted block headers (both plain and quoted forms are valid)', () => {
+    expect(generateSource).not.toMatch(/DO NOT wrap alt.*block headers in quotes/i);
   });
 
   it('instructs not to wrap message labels after colons in quotes', () => {
@@ -85,16 +87,18 @@ describe('generate-diagram-from-description prompt rules', () => {
 });
 
 describe('fix-diagram-error prompt rules', () => {
-  it('does not instruct wrapping logic-block headers in double quotes', () => {
-    expect(fixSource).not.toMatch(/Wrap all logic-block headers in double quotes/i);
+  it('does not instruct removing quotes from logic-block headers', () => {
+    // Both "alt label" and alt "label" are valid Mermaid v10.9.1 syntax;
+    // the fix prompt must not tell the model to strip valid quoted headers.
+    expect(fixSource).not.toMatch(/do NOT wrap.*logic-block headers in quotes/i);
   });
 
   it('does not instruct wrapping message labels in double quotes', () => {
     expect(fixSource).not.toMatch(/Wrap all message labels after colons in double quotes/i);
   });
 
-  it('instructs using plain text for logic-block headers', () => {
-    expect(fixSource).toMatch(/plain text for logic-block headers/i);
+  it('instructs using plain or quoted text for logic-block headers', () => {
+    expect(fixSource).toMatch(/plain text or quoted text for logic-block headers/i);
   });
 
   it('instructs stripping parentheses, slashes, and backslashes from labels', () => {
