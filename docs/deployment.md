@@ -1,6 +1,6 @@
-# Deployment Guide: Firebase App to Cloud Run
+# Deployment Guide: Mermaid Cloud Viz on Cloud Run
 
-This document provides step-by-step instructions to deploy the Mermaid Cloud Viz application to Cloud Run using Cloud Build. This guide ensures reproducibility from scratch.
+This document provides step-by-step instructions to deploy the Mermaid Cloud Viz application to Cloud Run. No Firebase dependencies — auth via Google OAuth2 (next-auth), logs in Cloud Datastore, metrics via Cloud Monitoring.
 
 ## Table of Contents
 
@@ -11,8 +11,7 @@ This document provides step-by-step instructions to deploy the Mermaid Cloud Viz
 5. [Artifact Registry Setup](#artifact-registry-setup)
 6. [Local Deployment with Cloud Build](#local-deployment-with-cloud-build)
 7. [GitHub Actions Deployment](#github-actions-deployment)
-8. [Firebase Hosting Integration](#firebase-hosting-integration)
-9. [Troubleshooting](#troubleshooting)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -21,7 +20,6 @@ This document provides step-by-step instructions to deploy the Mermaid Cloud Viz
 Before starting, ensure you have:
 
 - [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated
-- [Firebase CLI](https://firebase.google.com/docs/cli) installed (`npm install -g firebase-tools`)
 - A GCP project with billing enabled
 - Node.js 20+ and npm installed locally
 - Git installed
@@ -134,19 +132,24 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 ## Secret Manager Setup
 
-### 1. Create required secrets
+### 1. Required secrets
+
+Enable these APIs first:
+```bash
+gcloud services enable \
+  datastore.googleapis.com \
+  monitoring.googleapis.com
+```
 
 The application requires the following secrets in Secret Manager:
 
 | Secret Name | Description |
 |-------------|-------------|
 | `GEMINI_API_KEY` | Google AI (Gemini) API key |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase project API key |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
+| `GOOGLE_CLIENT_ID` | OAuth2 client ID (GCP Console → APIs & Services → Credentials) |
+| `GOOGLE_CLIENT_SECRET` | OAuth2 client secret |
+| `NEXTAUTH_SECRET` | Random 32-char string for JWT signing (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | Public URL of your Cloud Run service (e.g. `https://mermaid-exporter-xxx.run.app`) |
 
 ### 2. Create secrets using gcloud
 
@@ -176,9 +179,7 @@ Alternatively, use the provided script to upload secrets from a `.env.local` fil
 COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 # Grant access to each secret
-for SECRET in GEMINI_API_KEY NEXT_PUBLIC_FIREBASE_API_KEY NEXT_PUBLIC_FIREBASE_PROJECT_ID \
-  NEXT_PUBLIC_FIREBASE_APP_ID NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID; do
+for SECRET in GEMINI_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET NEXTAUTH_SECRET NEXTAUTH_URL; do
   gcloud secrets add-iam-policy-binding $SECRET \
     --member="serviceAccount:${COMPUTE_SA}" \
     --role="roles/secretmanager.secretAccessor"
@@ -240,12 +241,10 @@ gcloud run deploy $SERVICE_NAME \
   --memory 512Mi \
   --cpu 1 \
   --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest" \
-  --update-secrets "NEXT_PUBLIC_FIREBASE_API_KEY=NEXT_PUBLIC_FIREBASE_API_KEY:latest" \
-  --update-secrets "NEXT_PUBLIC_FIREBASE_PROJECT_ID=NEXT_PUBLIC_FIREBASE_PROJECT_ID:latest" \
-  --update-secrets "NEXT_PUBLIC_FIREBASE_APP_ID=NEXT_PUBLIC_FIREBASE_APP_ID:latest" \
-  --update-secrets "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:latest" \
-  --update-secrets "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:latest" \
-  --update-secrets "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:latest"
+  --update-secrets "GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest" \
+  --update-secrets "GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest" \
+  --update-secrets "NEXTAUTH_SECRET=NEXTAUTH_SECRET:latest" \
+  --update-secrets "NEXTAUTH_URL=NEXTAUTH_URL:latest"
 ```
 
 ### 3. Verify deployment
@@ -291,47 +290,6 @@ To manually trigger:
 ### 3. Monitor deployment
 
 Check the Actions tab for build logs and deployment status.
-
----
-
-## Firebase Hosting Integration
-
-### 1. Configure firebase.json
-
-The `firebase.json` file includes rewrite rules to route traffic to Cloud Run:
-
-```json
-{
-  "hosting": {
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "run": {
-          "serviceId": "mermaid-exporter",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "**",
-        "run": {
-          "serviceId": "mermaid-exporter",
-          "region": "us-central1"
-        }
-      }
-    ]
-  }
-}
-```
-
-### 2. Deploy Firebase Hosting
-
-```bash
-firebase deploy --only hosting
-```
-
-### 3. Verify Firebase to Cloud Run routing
-
-After deploying Firebase Hosting, your Firebase URL will route all traffic to the Cloud Run service.
 
 ---
 
@@ -385,20 +343,15 @@ gcloud auth configure-docker
 2. Verify all secrets are accessible
 3. Check the Dockerfile for correct startup command
 
-#### 5. Firebase Hosting not routing to Cloud Run
+#### 5. Sign-in redirect fails
 
-**Cause:** Misconfigured rewrite rules or service not deployed.
+**Cause:** `NEXTAUTH_URL` does not match the Cloud Run service URL.
 
 **Solution:**
-1. Verify Cloud Run service is running:
-   ```bash
-   gcloud run services describe $SERVICE_NAME --region $REGION
-   ```
-2. Ensure `firebase.json` has correct service ID and region
-3. Redeploy Firebase Hosting:
-   ```bash
-   firebase deploy --only hosting
-   ```
+1. Get your service URL: `gcloud run services describe $SERVICE_NAME --region $REGION --format='value(status.url)'`
+2. Update the `NEXTAUTH_URL` secret with that value
+3. Add the URL to your Google OAuth2 authorized redirect URIs in GCP Console:
+   `https://your-service-url/api/auth/callback/google`
 
 ### Viewing Logs
 
@@ -443,4 +396,5 @@ gcloud run services update-traffic $SERVICE_NAME \
 - [Cloud Build Documentation](https://cloud.google.com/build/docs)
 - [Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Secret Manager Documentation](https://cloud.google.com/secret-manager/docs)
-- [Firebase Hosting to Cloud Run](https://firebase.google.com/docs/hosting/cloud-run)
+- [Cloud Datastore Documentation](https://cloud.google.com/datastore/docs)
+- [Cloud Monitoring Documentation](https://cloud.google.com/monitoring/docs)

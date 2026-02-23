@@ -1,14 +1,7 @@
 "use client";
 
-import React, { createContext, useState, ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { 
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  User as FirebaseUser
-} from "firebase/auth";
-import { initClientFirebase, getAuthInstance } from "@/lib/firebase";
+import React, { createContext, useEffect, useRef } from "react";
+import { useSession, signIn, signOut as nextSignOut } from "next-auth/react";
 import { logUserActivity } from "@/lib/logging";
 
 export interface User {
@@ -27,92 +20,46 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+  const prevUid = useRef<string | null>(null);
 
+  const user: User | null = session?.user
+    ? {
+        uid: (session.user as any).uid ?? session.user.email ?? "",
+        name: session.user.name ?? null,
+        email: session.user.email ?? null,
+        image: session.user.image ?? null,
+      }
+    : null;
+
+  const loading = status === "loading";
+
+  // Log session_start once per sign-in
   useEffect(() => {
-    // Initialize the Firebase client and attach an auth listener when ready.
-    let unsub: (() => void) | null = null;
-    let isCancelled = false;
-
-    initClientFirebase()
-      .then(() => {
-        if (isCancelled) return;
-        const auth = getAuthInstance();
-        if (auth) {
-          unsub = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-            if (firebaseUser) {
-              const { uid, displayName, email, photoURL } = firebaseUser;
-              const userPayload: User = {
-                uid: uid,
-                name: displayName,
-                email: email,
-                image: photoURL,
-              };
-              setUser(userPayload);
-              localStorage.setItem("mermaid-user-session", JSON.stringify(userPayload));
-              logUserActivity(uid, 'session_start', { email });
-            } else {
-              setUser(null);
-              localStorage.removeItem("mermaid-user-session");
-            }
-            setLoading(false);
-          });
-        } else {
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to initialize firebase client', err);
-        setLoading(false);
-      });
-
-    return () => {
-      isCancelled = true;
-      try {
-        if (unsub) unsub();
-      } catch (_) {
-        // noop
-      }
-    };
-  }, [router]);
-
-  const signIn = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const auth = getAuthInstance();
-      if (auth) {
-        await signInWithPopup(auth, provider);
-      } else {
-        console.warn('Auth not initialized at sign-in time');
-      }
-    } catch (error) {
-      console.error("Error signing in with Google", error);
-      logUserActivity(undefined, 'error_sign_in', { error: String(error) });
+    if (user && user.uid !== prevUid.current) {
+      prevUid.current = user.uid;
+      logUserActivity(user.uid, "session_start", { email: user.email });
+    } else if (!user) {
+      prevUid.current = null;
     }
+  }, [user]);
+
+  const handleSignIn = () => {
+    signIn("google");
   };
 
-  const signOut = async () => {
-    try {
-      if (user?.uid) {
-        logUserActivity(user.uid, 'session_end');
-      }
-      const auth = getAuthInstance();
-      if (auth) {
-        await auth.signOut();
-      }
-      // Just reload or stay on page, no need to redirect to / as we are already there
-      router.refresh(); 
-    } catch (error) {
-      console.error("Error signing out", error);
+  const handleSignOut = () => {
+    if (user?.uid) {
+      logUserActivity(user.uid, "session_end");
     }
+    nextSignOut({ redirect: false });
   };
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, signIn: handleSignIn, signOut: handleSignOut, loading }}>
       {children}
     </AuthContext.Provider>
   );
 }
+
