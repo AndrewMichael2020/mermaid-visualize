@@ -52,6 +52,7 @@ MERMAID v10.9.1 COMMON FIXES to apply while correcting:
 - Use short plain IDs with "as" for participant display labels: participant P as "Patient (User)"
 - Remove any embedded URLs, HTML tags, or Markdown formatting from labels; use %% comments for references
 - Verify that the count of alt/loop/opt/par/critical/break/subgraph keywords exactly equals the count of "end" keywords
+- OPT vs ALT — CRITICAL DISTINCTION: 'opt' represents a single optional path with NO else branch; placing 'else' inside 'opt' is a syntax error. If the broken diagram uses 'else' inside 'opt', change 'opt' to 'alt' to fix it. Use 'opt' only for a single optional block with no branching.
 - In sequence diagrams, balance activate/deactivate on EVERY branch path: a deactivate in one alt/else branch does NOT automatically deactivate in sibling branches — each branch is evaluated independently from the state that existed when the alt/opt block opened, so every branch must handle its own activate/deactivate lifecycle; participants left active in any branch remain active after the block closes
 - Do not mix shorthand arrow activation (->+ / ->-) with explicit activate/deactivate statements in the same diagram; prefer explicit forms for complex scopes
 - Do not use curly/smart quotes in any label; use only standard straight apostrophes ' if needed

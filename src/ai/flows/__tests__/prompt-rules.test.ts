@@ -50,6 +50,12 @@ describe('enhance-diagram-with-llm prompt rules', () => {
     expect(enhanceSource).toContain('BLOCK CLOSURE VERIFICATION');
   });
 
+  it('enforces OPT vs ALT distinction rule', () => {
+    expect(enhanceSource).toMatch(/OPT vs ALT/i);
+    expect(enhanceSource).toMatch(/'opt'.*single optional path/i);
+    expect(enhanceSource).toMatch(/Never place an 'else' inside an 'opt'/i);
+  });
+
   it('requires activate/deactivate balance on every alt/else branch', () => {
     expect(enhanceSource).toContain('SEQUENCE DIAGRAM ACTIVATION BALANCE');
     expect(enhanceSource).toMatch(/balance activate.*deactivate.*EVERY branch/i);
@@ -84,6 +90,12 @@ describe('generate-diagram-from-description prompt rules', () => {
   it('retains ID/LABEL SEPARATION rule for participants', () => {
     expect(generateSource).toContain('ID/LABEL SEPARATION FOR PARTICIPANTS');
   });
+
+  it('enforces OPT vs ALT distinction rule', () => {
+    expect(generateSource).toMatch(/OPT vs ALT/i);
+    expect(generateSource).toMatch(/'opt'.*single optional path/i);
+    expect(generateSource).toMatch(/Never place an 'else' inside an 'opt'/i);
+  });
 });
 
 describe('fix-diagram-error prompt rules', () => {
@@ -115,6 +127,12 @@ describe('fix-diagram-error prompt rules', () => {
 
   it('prohibits mixing shorthand arrow activation with explicit activate/deactivate', () => {
     expect(fixSource).toMatch(/Do not mix shorthand.*activate/i);
+  });
+
+  it('enforces OPT vs ALT distinction rule', () => {
+    expect(fixSource).toMatch(/OPT vs ALT/i);
+    expect(fixSource).toMatch(/'opt'.*single optional path/i);
+    expect(fixSource).toMatch(/else.*inside.*opt.*syntax error/i);
   });
 
   it('retains participant aliasing with "as" keyword rule', () => {

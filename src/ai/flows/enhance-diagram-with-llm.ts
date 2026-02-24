@@ -63,6 +63,12 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      and subgraph keywords in the diagram. Ensure an exactly equal number of "end" keywords are present.
      Missing or extra "end" keywords make the entire diagram unparseable.
 
+  4.1. OPT vs ALT — CRITICAL DISTINCTION: In sequence diagrams, 'opt' represents a single optional path
+      with NO else branch. Never place an 'else' inside an 'opt' block — this is a syntax error.
+      Use 'alt' (alternative) when you need if/else logic with two or more branches.
+      Correct: alt Condition / ... / else Other / ... / end
+      Wrong:   opt Condition / ... / else Other / ... / end
+
   5. SEQUENCE DIAGRAM ACTIVATION BALANCE: In sequence diagrams, balance activate/deactivate on EVERY branch path.
      A deactivate in one alt/else branch does NOT automatically deactivate in sibling branches — each branch is
      evaluated independently from the activation state that existed when the alt/opt block opened, so EVERY branch

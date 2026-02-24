@@ -106,6 +106,18 @@ export function validateMermaidSyntax(code: string): MermaidValidationResult {
     // same activation state that existed at the enclosing block's open.
     if (BRANCH_SEPARATOR_RE.test(trimmed) && blockStack.length > 0) {
       const frame = blockStack[blockStack.length - 1];
+
+      // Detect 'else' inside an 'opt' block — opt only supports a single path
+      // and does not allow else branches; use 'alt' instead.
+      if (/^\s*else\b/.test(trimmed) && frame.keyword === 'opt') {
+        errors.push({
+          line: lineNum,
+          message:
+            `Line ${lineNum}: 'else' is not allowed inside an 'opt' block. ` +
+            `'opt' only supports a single optional path with no else branch. ` +
+            `Use 'alt' instead of 'opt' to express if/else logic.`,
+        });
+      }
       // Save the end-state of the branch that just finished
       frame.branchEndStates.push(deepCopyState(activationStack));
       // Restore activation state to what it was at the start of this block
