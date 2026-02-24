@@ -246,6 +246,53 @@ describe('validateMermaidSyntax', () => {
     expect(result.errors.some(e => e.message.includes("activate A"))).toBe(true);
   });
 
+  // ── opt/else misuse ────────────────────────────────────────────────────────
+
+  it('detects else inside an opt block', () => {
+    const code = [
+      'sequenceDiagram',
+      '  A->>B: Request',
+      '  opt Condition',
+      '    B-->>A: OK',
+      '  else Failure',
+      '    B-->>A: Error',
+      '  end',
+    ].join('\n');
+    const result = validateMermaidSyntax(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].message).toMatch(/'else' is not allowed inside an 'opt' block/);
+    expect(result.errors[0].message).toMatch(/Use 'alt' instead/);
+    expect(result.errors[0].line).toBe(5);
+  });
+
+  it('does NOT flag else inside an alt block', () => {
+    const code = [
+      'sequenceDiagram',
+      '  A->>B: Request',
+      '  alt Condition',
+      '    B-->>A: OK',
+      '  else Failure',
+      '    B-->>A: Error',
+      '  end',
+    ].join('\n');
+    const result = validateMermaidSyntax(code);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('does NOT flag opt without else', () => {
+    const code = [
+      'sequenceDiagram',
+      '  A->>B: Request',
+      '  opt Optional step',
+      '    B-->>A: Maybe',
+      '  end',
+    ].join('\n');
+    const result = validateMermaidSyntax(code);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   // ── Comments ignored ──────────────────────────────────────────────────────
 
   it('ignores %% comments', () => {

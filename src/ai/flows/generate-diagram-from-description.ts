@@ -59,6 +59,16 @@ const prompt = ai.definePrompt({
      and subgraph keywords in the diagram. Ensure an exactly equal number of "end" keywords are present.
      Missing or extra "end" keywords make the entire diagram unparseable.
 
+  4.1. OPT vs ALT — CRITICAL DISTINCTION: In sequence diagrams, 'opt' represents a single optional path
+      with NO else branch. Never place an 'else' inside an 'opt' block — this is a syntax error.
+      Use 'alt' (alternative) when you need if/else logic with two or more branches.
+      Correct: alt Condition / ... / else Other / ... / end
+      Wrong:   opt Condition / ... / else Other / ... / end
+      with NO else branch. Never place an 'else' inside an 'opt' block — this is a syntax error.
+      Use 'alt' (alternative) when you need if/else logic with two or more branches.
+      Correct: alt Condition / ... / else Other / ... / end
+      Wrong:   opt Condition / ... / else Other / ... / end
+
   5. NODE LABEL SPECIAL CHARACTERS: If a node label contains parentheses, brackets, or other special characters,
      wrap the label in double quotes.
      Example: A["Node with (parentheses)"] --> B["Another Node"]
