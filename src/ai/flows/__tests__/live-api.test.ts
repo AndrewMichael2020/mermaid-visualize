@@ -658,7 +658,7 @@ describe('Live AI API — enhance-diagram-with-llm edge cases', () => {
     expect(enhanced).toContain('sequenceDiagram');
   });
 
-  it('does NOT add a theme block to an ER diagram', async () => {
+  it('adds a %%{init:...}%% theme block to an ER diagram (no style lines)', async () => {
     if (skip) return;
 
     const prompt = interpolatePrompt(enhancePromptTemplate, {
@@ -671,8 +671,9 @@ describe('Live AI API — enhance-diagram-with-llm edge cases', () => {
 
     expect(enhanced).toContain('erDiagram');
     expect(enhanced).toContain('DOCTOR');
-    // ER diagrams must NOT get a theme block
-    expect(enhanced).not.toContain('%%{init:');
+    // ER diagrams must use %%{init:...}%% for theming — never bare 'style' lines
+    expect(enhanced).toContain('%%{init:');
+    expect(enhanced).not.toMatch(/^style\s+\w+/m);
   });
 
   it('preserves the flowchart diagram type when enhancing', async () => {
