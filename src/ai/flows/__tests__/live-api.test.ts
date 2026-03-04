@@ -92,7 +92,6 @@ function callOpenAIHttps(prompt: string, responseSchema: object): Promise<Record
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: AI_MODEL_NAME,
-      reasoning_effort: 'medium',
       messages: [{ role: 'user', content: prompt }],
       response_format: {
         type: 'json_schema',
@@ -140,10 +139,15 @@ function callOpenAIHttps(prompt: string, responseSchema: object): Promise<Record
  * Returns the parsed structured JSON from the model's response.
  */
 function callGeminiHttps(prompt: string, responseSchema: object): Promise<Record<string, string>> {
+  // Gemini does not support 'additionalProperties' in response schemas — strip it.
+  const geminiSchema = JSON.parse(JSON.stringify(responseSchema, (key, val) =>
+    key === 'additionalProperties' ? undefined : val
+  ));
+
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', responseSchema },
+      generationConfig: { responseMimeType: 'application/json', responseSchema: geminiSchema },
     });
 
     const options: https.RequestOptions = {
