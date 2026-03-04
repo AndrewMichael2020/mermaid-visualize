@@ -25,16 +25,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
+        run: npm ci --audit=false
       - name: Run live AI API tests and report results
         run: |
-          if [ -z "${GEMINI_API_KEY}" ]; then
-            echo "ℹ️ GEMINI_API_KEY not configured — tests skipped."
+          if [ -z "${OPENAI_API_KEY}" ] && [ -z "${GEMINI_API_KEY}" ]; then
+            echo "ℹ️ No AI API key configured — live tests skipped."
             printf '### 🤖 Live AI Model Tests\n**Status:** API key not configured — skipped.\n✅ Treated as passing.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          npm run test -- --ci --no-coverage --testPathPatterns=live-api --forceExit --json --outputFile=/tmp/live-results.json || true
+          timeout 180 npm run test -- --ci --no-coverage --testPathPatterns=live-api --forceExit --testTimeout=30000 --json --outputFile=/tmp/live-results.json || true
           node -e "
             const fs = require('fs');
             try {
