@@ -26,6 +26,8 @@ interface DiagramViewerProps {
    * - `aiAttemptExplanation` is what the fix agent tried (may be empty string).
    */
   onFixStateChange?: (errorMessage: string | null, aiAttemptExplanation: string | null) => void;
+  /** Called with the AI-corrected code so the editor can reflect the fix. */
+  onCodeFix?: (fixedCode: string) => void;
 }
 
 const darkThemeVariables = {
@@ -39,7 +41,7 @@ const darkThemeVariables = {
     nodeTextColor: '#fff',
 };
 
-export default function DiagramViewer({ code, theme: selectedTheme, setTheme, onFixStateChange }: DiagramViewerProps) {
+export default function DiagramViewer({ code, theme: selectedTheme, setTheme, onFixStateChange, onCodeFix }: DiagramViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +57,8 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme, on
   // calls the current version without needing it in the effect dependency array.
   const onFixStateChangeRef = useRef(onFixStateChange);
   onFixStateChangeRef.current = onFixStateChange;
+  const onCodeFixRef = useRef(onCodeFix);
+  onCodeFixRef.current = onCodeFix;
 
   const { toast } = useToast();
   const { resolvedTheme } = useNextTheme();
@@ -159,6 +163,7 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme, on
         if (viewerRef.current) viewerRef.current.innerHTML = svg;
         setFixState({ status: 'fixed', explanation, originalError: errorMsg });
         onFixStateChangeRef.current?.(null, null);
+        onCodeFixRef.current?.(fixedCode);
       } catch {
         setFixState({ status: 'failed', fixedCode, explanation, originalError: errorMsg });
         onFixStateChangeRef.current?.(errorMsg, explanation);
@@ -167,6 +172,13 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme, on
 
     renderDiagram();
   }, [code, selectedTheme, isDark]);
+
+  // Auto-dismiss the "Auto-corrected" banner after 10 seconds
+  useEffect(() => {
+    if (fixState.status !== 'fixed') return;
+    const timer = setTimeout(() => setFixState({ status: 'idle' }), 10000);
+    return () => clearTimeout(timer);
+  }, [fixState.status]);
   
   const handleCopy = async () => {
     try {

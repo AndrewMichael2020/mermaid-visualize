@@ -82,6 +82,7 @@ export default function HomePage() {
               theme={theme}
               setTheme={setTheme}
               onFixStateChange={handleFixStateChange}
+              onCodeFix={setDiagramCode}
             />
           )}
         </div>

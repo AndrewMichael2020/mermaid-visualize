@@ -95,6 +95,19 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      closing 'end', keep that outer pair in place — do NOT move it inside branches. Only add missing
      activate/deactivate for other participants inside branches that need them.
 
+  5.1. NODE LABEL SPECIAL CHARACTERS: If a node label contains parentheses, brackets, or other special characters,
+       wrap the label in double quotes.
+       Example: A["Node with (parentheses)"] --> B["Another Node"]
+       - NEVER include a bare '>' or '<' inside a node label — even inside double quotes it breaks the parser.
+         Rewrite comparisons in plain English: use "more than 5 min" instead of ">5 min".
+
+  5.2. CLASSDEF INTEGRITY — CRITICAL: Every node referenced in a 'class' statement MUST have a matching
+       'classDef' definition. Before emitting any 'class NodeID styleName' line, verify that
+       'classDef styleName ...' appears earlier in the diagram. Never assign a node to an undefined
+       classDef name (e.g., do NOT write 'class EN intermediateState' if 'intermediateState' has no
+       matching 'classDef intermediateState ...' line — either add the classDef or remove the class assignment).
+       When enhancing an existing diagram, audit ALL existing 'class' assignments to ensure their classDefs exist.
+
   THEMING GUIDELINES:
   6. STYLE KEYWORD SCOPE — CRITICAL: The 'style' keyword (e.g., "style NodeA fill:#F00") is ONLY valid inside
      flowchart/graph diagrams. It is NOT supported in sequenceDiagram, erDiagram, classDiagram, stateDiagram,
