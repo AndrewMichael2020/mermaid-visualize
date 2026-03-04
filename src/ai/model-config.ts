@@ -36,7 +36,7 @@ export interface ModelConfig {
 const MODEL_REGISTRY: Record<Provider, ModelConfig> = {
   openai: {
     model: 'openai/gpt-5-nano',
-    config: { reasoning_effort: 'medium' },
+    config: {},
     apiModelName: 'gpt-5-nano',
     apiHost: 'api.openai.com',
     apiKeyEnvVar: 'OPENAI_API_KEY',
