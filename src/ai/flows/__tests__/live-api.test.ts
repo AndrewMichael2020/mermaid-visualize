@@ -58,6 +58,7 @@ const FIX_RESPONSE_SCHEMA = {
     },
   },
   required: ['fixedCode', 'explanation'],
+  additionalProperties: false,
 };
 
 /** Schema for the enhance-diagram-with-llm output. */
@@ -67,6 +68,7 @@ const ENHANCE_RESPONSE_SCHEMA = {
     enhancedDiagramCode: { type: 'string', description: 'The enhanced Mermaid diagram code.' },
   },
   required: ['enhancedDiagramCode'],
+  additionalProperties: false,
 };
 
 /** Extract the prompt template string from a flow source file. */
