@@ -90,6 +90,9 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      must handle its own activate/deactivate lifecycle. Participants left active in any branch remain active after
      the block closes. Do NOT mix shorthand arrow activation (->+ / ->-) with explicit activate/deactivate
      statements in the same diagram; prefer the explicit form for complex scopes.
+     OUTER SCOPE RULE: If a participant is activated BEFORE an alt/loop/opt block and deactivated AFTER the
+     closing 'end', keep that outer pair in place — do NOT move it inside branches. Only add missing
+     activate/deactivate for other participants inside branches that need them.
 
   THEMING GUIDELINES:
   6. STYLE KEYWORD SCOPE — CRITICAL: The 'style' keyword (e.g., "style NodeA fill:#F00") is ONLY valid inside
