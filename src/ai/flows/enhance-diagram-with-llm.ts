@@ -11,6 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {AI_MODELS} from '@/ai/model-config';
 import type {TokenUsage} from '@/lib/cost-estimator';
+import {formatMermaidCode} from '@/lib/mermaid-formatter';
 
 const EnhanceDiagramWithLLMInputSchema = z.object({
   diagramCode: z.string().describe('The Mermaid diagram code to enhance.'),
@@ -203,7 +204,7 @@ const enhanceDiagramWithLLMFlow = ai.defineFlow(
       .trim();
 
     return {
-      enhancedDiagramCode: enhancedCode,
+      enhancedDiagramCode: formatMermaidCode(enhancedCode),
     };
   }
 );

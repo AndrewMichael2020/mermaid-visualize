@@ -11,6 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {AI_MODELS} from '@/ai/model-config';
 import type {TokenUsage} from '@/lib/cost-estimator';
+import {formatMermaidCode} from '@/lib/mermaid-formatter';
 
 const GenerateDiagramInputSchema = z.object({
   description: z.string().describe('A natural language description of the diagram.'),
@@ -169,10 +170,11 @@ const generateDiagramFlow = ai.defineFlow(
 
     // Clean up markdown code fences if present, but preserve theme/styling blocks
     if (output && output.mermaidCode) {
-      output.mermaidCode = output.mermaidCode
-        .replace(/```mermaid/g, '')
-        .replace(/```/g, '')
-        .trim();
+      output.mermaidCode = formatMermaidCode(
+        output.mermaidCode
+          .replace(/```mermaid/g, '')
+          .replace(/```/g, '')
+      );
     }
 
     return output!;
