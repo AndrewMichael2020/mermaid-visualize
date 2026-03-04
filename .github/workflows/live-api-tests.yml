@@ -6,9 +6,6 @@ on:
 permissions:
   contents: read
 
-env:
-  ACTIVE_PROVIDER: openai   # Change to 'googleai' to switch AI provider
-
 jobs:
   live-ai-tests:
     name: Live AI API Tests
@@ -27,34 +24,21 @@ jobs:
         run: npm ci --audit=false
       - name: Run live AI API tests and report results
         run: |
-          if [ "$ACTIVE_PROVIDER" = "openai" ]; then KEY_VALUE="$OPENAI_API_KEY"; else KEY_VALUE="$GEMINI_API_KEY"; fi
-          if [ -z "$KEY_VALUE" ]; then
-            echo "⏭️ Live AI tests: API key not set for provider '$ACTIVE_PROVIDER' — skipped."
-            printf '### 🤖 Live AI Model Tests\n**Status:** API key not configured — skipped.\n✅ Treated as passing.\n' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           npx jest --ci --no-coverage --testPathPatterns=live-api --forceExit --runInBand --testTimeout=8000 --json --outputFile=/tmp/live-results.json || true
           node -e "
             const fs = require('fs');
             try {
               const r = JSON.parse(fs.readFileSync('/tmp/live-results.json', 'utf8'));
-              const total = r.numTotalTests, passed = r.numPassedTests;
-              if (total === 0) {
-                console.log('⚠️ Live AI tests: no test files found — check testPathPatterns.');
-                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### 🤖 Live AI Model Tests\n⚠️ **No test files matched** — check testPathPatterns.\n');
-                process.exit(1);
-              }
-              const pct = Math.round(passed / total * 100);
+              const passed = r.numPassedTests, total = r.numTotalTests;
+              const pct = total ? Math.round(passed / total * 100) : 0;
               const pass = pct >= 80;
               const icon = pass ? '✅' : '❌';
               console.log(icon + ' Live AI tests: ' + passed + '/' + total + ' passed (' + pct + '%)');
-              const summary = '### 🤖 Live AI Model Tests\n**' + passed + '/' + total + ' passed (' + pct + '%)**\n' + icon + ' ' + (pass ? '≥80% threshold met — PASSING' : 'Below 80% threshold — FAILING') + '\n';
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### 🤖 Live AI Model Tests\n**' + passed + '/' + total + ' (' + pct + '%)**\n' + icon + '\n');
               process.exit(pass ? 0 : 1);
             } catch(e) {
-              console.log('ℹ️ Live AI tests: results unavailable — treated as passing.');
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### 🤖 Live AI Model Tests\n**Status:** API unavailable — treated as passing.\n');
-              process.exit(0);
+              console.log('⚠️ Live AI tests: no results (API unreachable or key missing).');
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### 🤖 Live AI Model Tests\n**Status:** Skipped (API unavailable).\n');
             }
           "
         env:
