@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
 
+env:
+  ACTIVE_PROVIDER: openai   # Change to 'googleai' to switch AI provider
+
 jobs:
   live-ai-tests:
     name: Live AI API Tests
@@ -24,15 +27,13 @@ jobs:
         run: npm ci --audit=false
       - name: Run live AI API tests and report results
         run: |
-          ACTIVE_PROVIDER=$(grep "^export const ACTIVE_PROVIDER" src/ai/model-config.ts | grep -o "'[^']*'" | tr -d "'")
-          if [ "$ACTIVE_PROVIDER" = "openai" ]; then KEY_VAR="OPENAI_API_KEY"; else KEY_VAR="GEMINI_API_KEY"; fi
-          KEY_VALUE="${!KEY_VAR}"
+          if [ "$ACTIVE_PROVIDER" = "openai" ]; then KEY_VALUE="$OPENAI_API_KEY"; else KEY_VALUE="$GEMINI_API_KEY"; fi
           if [ -z "$KEY_VALUE" ]; then
-            echo "ℹ️ Live AI tests: $KEY_VAR not configured — skipped."
+            echo "⏭️ Live AI tests: API key not set for provider '$ACTIVE_PROVIDER' — skipped."
             printf '### 🤖 Live AI Model Tests\n**Status:** API key not configured — skipped.\n✅ Treated as passing.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          timeout 160 npx jest --ci --no-coverage --testPathPatterns=live-api --forceExit --runInBand --testTimeout=8000 --json 2>/dev/null > /tmp/live-results.json || true
+          npx jest --ci --no-coverage --testPathPatterns=live-api --forceExit --runInBand --testTimeout=8000 --outputFile=/tmp/live-results.json || true
           node -e "
             const fs = require('fs');
             try {
