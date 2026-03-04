@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
+import { useSessionCost } from '@/contexts/session-cost-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,8 +17,24 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PLACEHOLDER_AVATAR } from '@/lib/placeholder-images';
 
+/** Format a raw token count as "1.2k" or "123". */
+function fmtTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+/** Format a C$ cost, showing more decimals for tiny amounts. */
+function fmtCad(c: number): string {
+  if (c === 0) return 'C$0.00';
+  if (c < 0.005) return `C$${c.toFixed(4)}`;
+  return `C$${c.toFixed(2)}`;
+}
+
 export default function Header() {
   const { user, signIn, signOut } = useAuth();
+  const { totalInputTokens, totalOutputTokens, totalCostCad, callCount } = useSessionCost();
+
+  const totalTokens = totalInputTokens + totalOutputTokens;
+  const hasUsage = callCount > 0;
 
   return (
     <header className="grid grid-cols-3 h-16 items-center border-b bg-card px-4 sm:px-6 shrink-0">
@@ -40,7 +57,19 @@ export default function Header() {
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {/* Session usage pill — only shown after at least one AI call */}
+        {hasUsage && (
+          <div
+            title={`Input: ${totalInputTokens.toLocaleString()} tokens · Output: ${totalOutputTokens.toLocaleString()} tokens · ${callCount} call${callCount !== 1 ? 's' : ''}`}
+            className="hidden sm:flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground border border-border/50 select-none"
+          >
+            <span className="font-mono">{fmtTokens(totalTokens)} tok</span>
+            <span className="text-border">·</span>
+            <span className="font-mono font-medium text-foreground">{fmtCad(totalCostCad)}</span>
+          </div>
+        )}
+
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -84,3 +113,4 @@ export default function Header() {
     </header>
   );
 }
+

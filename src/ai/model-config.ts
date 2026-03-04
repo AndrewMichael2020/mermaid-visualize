@@ -10,6 +10,9 @@
  * └─────────────────────────────────────────────────────────────────────────┘
  */
 
+/** USD → CAD conversion rate (approximate). */
+export const USD_TO_CAD = 1.43;
+
 type Provider = 'openai' | 'googleai';
 
 export interface ModelConfig {
@@ -24,6 +27,11 @@ export interface ModelConfig {
   apiHost: string;
   /** Environment variable that holds the API key. */
   apiKeyEnvVar: string;
+  /** Pricing in USD per 1 million tokens (used for cost estimation). */
+  pricing: {
+    inputPerMillionTokens: number;
+    outputPerMillionTokens: number;
+  };
 }
 
 const MODEL_REGISTRY: Record<Provider, ModelConfig> = {
@@ -33,6 +41,7 @@ const MODEL_REGISTRY: Record<Provider, ModelConfig> = {
     apiModelName: 'gpt-5-nano',
     apiHost: 'api.openai.com',
     apiKeyEnvVar: 'OPENAI_API_KEY',
+    pricing: { inputPerMillionTokens: 0.10, outputPerMillionTokens: 0.40 },
   },
   googleai: {
     model: 'googleai/gemini-2.5-flash',
@@ -40,6 +49,7 @@ const MODEL_REGISTRY: Record<Provider, ModelConfig> = {
     apiModelName: 'gemini-2.5-flash',
     apiHost: 'generativelanguage.googleapis.com',
     apiKeyEnvVar: 'GEMINI_API_KEY',
+    pricing: { inputPerMillionTokens: 0.075, outputPerMillionTokens: 0.30 },
   },
 };
 

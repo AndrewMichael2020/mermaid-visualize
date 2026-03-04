@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useSessionCost } from "@/contexts/session-cost-context";
 import { logUserActivity } from "@/lib/logging";
 import {
   generateDiagram,
@@ -45,6 +46,7 @@ export default function DiagramEditor({ code, onCodeChange, errorContext }: Diag
   const [isEnhancing, setIsEnhancing] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { recordUsage } = useSessionCost();
 
   // Detect theming limitations based on current code
   const themingInfo = useMemo(() => {
@@ -90,6 +92,7 @@ export default function DiagramEditor({ code, onCodeChange, errorContext }: Diag
       logUserActivity(user?.uid, 'start_generate_diagram');
       const result = await generateDiagram({ description: generateDescription });
       if (result && result.mermaidCode) {
+        recordUsage(result.usage);
         onCodeChange(result.mermaidCode);
         setActiveTab("code");
         logUserActivity(user?.uid, 'success_generate_diagram');
@@ -135,6 +138,7 @@ export default function DiagramEditor({ code, onCodeChange, errorContext }: Diag
 
       const result = await enhanceDiagramWithLLM({ diagramCode: code, enhancementPrompt: finalPrompt });
       if (result && result.enhancedDiagramCode) {
+        recordUsage(result.usage);
         onCodeChange(result.enhancedDiagramCode);
         setActiveTab("code");
         logUserActivity(user?.uid, 'success_enhance_diagram');

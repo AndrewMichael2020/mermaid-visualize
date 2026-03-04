@@ -8,6 +8,18 @@ jest.mock('@/hooks/use-auth', () => ({
   useAuth: jest.fn(),
 }));
 
+// Mock the session cost context so the Header can render without a real provider
+jest.mock('@/contexts/session-cost-context', () => ({
+  useSessionCost: () => ({
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalCostCad: 0,
+    callCount: 0,
+    recordUsage: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
 // Mock the next/image component
 jest.mock('next/image', () => ({
   __esModule: true,

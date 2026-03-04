@@ -10,6 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {AI_MODELS} from '@/ai/model-config';
+import type {TokenUsage} from '@/lib/cost-estimator';
 
 const EnhanceDiagramWithLLMInputSchema = z.object({
   diagramCode: z.string().describe('The Mermaid diagram code to enhance.'),
@@ -22,8 +23,20 @@ const EnhanceDiagramWithLLMOutputSchema = z.object({
 });
 export type EnhanceDiagramWithLLMOutput = z.infer<typeof EnhanceDiagramWithLLMOutputSchema>;
 
-export async function enhanceDiagramWithLLM(input: EnhanceDiagramWithLLMInput): Promise<EnhanceDiagramWithLLMOutput> {
-  return enhanceDiagramWithLLMFlow(input);
+/** Extended return type that includes actual token usage from the API. */
+export interface EnhanceDiagramWithLLMResult extends EnhanceDiagramWithLLMOutput {
+  usage: TokenUsage;
+}
+
+export async function enhanceDiagramWithLLM(input: EnhanceDiagramWithLLMInput): Promise<EnhanceDiagramWithLLMResult> {
+  const result = await enhanceDiagramWithLLMPrompt(input);
+  return {
+    ...result.output!,
+    usage: {
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+    },
+  };
 }
 
 const enhanceDiagramWithLLMPrompt = ai.definePrompt({

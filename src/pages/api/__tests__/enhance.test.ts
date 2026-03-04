@@ -42,7 +42,7 @@ describe('POST /api/enhance', () => {
 
   it('returns 200 with enhanced mermaid code', async () => {
     mockEnhance.mockResolvedValueOnce({
-      enhancedDiagramCode: 'graph TD\n  A --> B\n  B --> C',
+      enhancedDiagramCode: 'graph TD\n  A --> B\n  B --> C', usage: { inputTokens: 0, outputTokens: 0 },
     });
 
     const { req, res } = createMocks({
@@ -66,7 +66,7 @@ describe('POST /api/enhance', () => {
 
   it('appends validation errors to the prompt when the input diagram has structural issues', async () => {
     mockEnhance.mockResolvedValueOnce({
-      enhancedDiagramCode: 'sequenceDiagram\n  A->>B: Hello',
+      enhancedDiagramCode: 'sequenceDiagram\n  A->>B: Hello', usage: { inputTokens: 0, outputTokens: 0 },
     });
 
     // Broken diagram: unclosed alt block
@@ -105,7 +105,7 @@ describe('POST /api/enhance', () => {
 
   it('returns 200 even with sequence diagram input', async () => {
     mockEnhance.mockResolvedValueOnce({
-      enhancedDiagramCode: 'sequenceDiagram\n  A->>B: Request Care\n  B-->>A: Response',
+      enhancedDiagramCode: 'sequenceDiagram\n  A->>B: Request Care\n  B-->>A: Response', usage: { inputTokens: 0, outputTokens: 0 },
     });
 
     const { req, res } = createMocks({

@@ -45,6 +45,7 @@ describe('POST /api/fix-diagram-error', () => {
     mockFixDiagramError.mockResolvedValueOnce({
       fixedCode: 'graph TD\n  A --> B',
       explanation: 'Removed unclosed bracket on line 2.',
+      usage: { inputTokens: 120, outputTokens: 80 },
     });
 
     const { req, res } = createMocks({
@@ -60,6 +61,7 @@ describe('POST /api/fix-diagram-error', () => {
     expect(res._getJSONData()).toEqual({
       fixedCode: 'graph TD\n  A --> B',
       explanation: 'Removed unclosed bracket on line 2.',
+      usage: { inputTokens: 120, outputTokens: 80 },
     });
     expect(mockFixDiagramError).toHaveBeenCalledWith({
       diagramCode: 'graph TD\n  A --> B[Unclosed',

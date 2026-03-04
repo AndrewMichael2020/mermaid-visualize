@@ -17,7 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const result = await fixDiagramError({ diagramCode, errorMessage });
-    return res.status(200).json(result);
+    return res.status(200).json({
+      fixedCode: result.fixedCode,
+      explanation: result.explanation,
+      usage: result.usage,
+    });
   } catch (err) {
     console.error('fix-diagram-error API error:', err);
     return res.status(500).json({ error: 'AI fix attempt failed' });

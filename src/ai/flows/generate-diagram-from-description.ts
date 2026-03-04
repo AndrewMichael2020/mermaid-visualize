@@ -10,6 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {AI_MODELS} from '@/ai/model-config';
+import type {TokenUsage} from '@/lib/cost-estimator';
 
 const GenerateDiagramInputSchema = z.object({
   description: z.string().describe('A natural language description of the diagram.'),
@@ -21,8 +22,20 @@ const GenerateDiagramOutputSchema = z.object({
 });
 export type GenerateDiagramOutput = z.infer<typeof GenerateDiagramOutputSchema>;
 
-export async function generateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
-  return generateDiagramFlow(input);
+/** Extended return type that includes actual token usage from the API. */
+export interface GenerateDiagramResult extends GenerateDiagramOutput {
+  usage: TokenUsage;
+}
+
+export async function generateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramResult> {
+  const result = await prompt(input);
+  return {
+    ...result.output!,
+    usage: {
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+    },
+  };
 }
 
 const prompt = ai.definePrompt({

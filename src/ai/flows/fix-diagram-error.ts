@@ -9,6 +9,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {AI_MODELS} from '@/ai/model-config';
+import type {TokenUsage} from '@/lib/cost-estimator';
 
 const FixDiagramErrorInputSchema = z.object({
   diagramCode: z.string().describe('The Mermaid diagram code that failed to render.'),
@@ -22,8 +23,37 @@ const FixDiagramErrorOutputSchema = z.object({
 });
 export type FixDiagramErrorOutput = z.infer<typeof FixDiagramErrorOutputSchema>;
 
-export async function fixDiagramError(input: FixDiagramErrorInput): Promise<FixDiagramErrorOutput> {
-  return fixDiagramErrorFlow(input);
+/** Extended return type that includes actual token usage from the API. */
+export interface FixDiagramErrorResult extends FixDiagramErrorOutput {
+  usage: TokenUsage;
+}
+
+export async function fixDiagramError(input: FixDiagramErrorInput): Promise<FixDiagramErrorResult> {
+  let result;
+  try {
+    result = await fixDiagramErrorPrompt(input);
+  } catch (err) {
+    console.error('LLM request failed in fixDiagramError:', err);
+    throw new Error('Diagram fix failed: upstream language model error.');
+  }
+
+  const output = result.output!;
+  // Strip any code fences the model may have added despite instructions.
+  const fixedCode = output.fixedCode
+    .replace(/^```(?:mermaid)?/gm, '')
+    .replace(/^'''/gm, '')
+    .replace(/```$/gm, '')
+    .replace(/'''$/gm, '')
+    .trim();
+
+  return {
+    fixedCode,
+    explanation: output.explanation.trim(),
+    usage: {
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+    },
+  };
 }
 
 const fixDiagramErrorPrompt = ai.definePrompt({

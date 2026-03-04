@@ -38,6 +38,17 @@ jest.mock('next-themes', () => ({
   }),
 }));
 
+jest.mock('@/contexts/session-cost-context', () => ({
+  useSessionCost: () => ({
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalCostCad: 0,
+    callCount: 0,
+    recordUsage: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
 // Helper to mock fetch for the fix-diagram-error API
 const mockFetch = (response: object, ok = true) => {
   global.fetch = jest.fn().mockResolvedValue({

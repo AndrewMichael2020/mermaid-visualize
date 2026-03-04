@@ -11,6 +11,7 @@ import { useTheme as useNextTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { initializeMermaid, getLastParseError, clearLastParseError } from "@/lib/mermaid-config";
 import { buildDetailedErrorMessage } from "@/lib/mermaid-validator";
+import { useSessionCost } from "@/contexts/session-cost-context";
 
 interface DiagramViewerProps {
   code: string;
@@ -57,6 +58,7 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme, on
 
   const { toast } = useToast();
   const { resolvedTheme } = useNextTheme();
+  const { recordUsage } = useSessionCost();
 
   const isDark = selectedTheme === 'dark';
 
@@ -131,6 +133,7 @@ export default function DiagramViewer({ code, theme: selectedTheme, setTheme, on
           const data = await res.json();
           fixedCode = data.fixedCode ?? '';
           explanation = data.explanation ?? explanation;
+          if (data.usage) recordUsage(data.usage);
         }
       } catch (fetchErr) {
         console.error('fix-diagram-error fetch failed:', fetchErr);
