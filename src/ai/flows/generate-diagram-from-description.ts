@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {AI_MODELS} from '@/ai/model-config';
 
 const GenerateDiagramInputSchema = z.object({
   description: z.string().describe('A natural language description of the diagram.'),
@@ -28,7 +29,8 @@ const prompt = ai.definePrompt({
   name: 'generateDiagramPrompt',
   input: {schema: GenerateDiagramInputSchema},
   output: {schema: GenerateDiagramOutputSchema},
-  model: 'googleai/gemini-2.5-flash-lite',
+  model: AI_MODELS.DIAGRAM_GENERATION.model,
+  config: AI_MODELS.DIAGRAM_GENERATION.config,
   prompt: `You are an expert in Mermaid syntax targeting the Mermaid v10.9.1 Langium-based parser.
 
   You will generate Mermaid code based on the user's description. Ensure the generated code is valid for Mermaid v10.9.1.

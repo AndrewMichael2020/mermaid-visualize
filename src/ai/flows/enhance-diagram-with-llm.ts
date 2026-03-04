@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {AI_MODELS} from '@/ai/model-config';
 
 const EnhanceDiagramWithLLMInputSchema = z.object({
   diagramCode: z.string().describe('The Mermaid diagram code to enhance.'),
@@ -29,7 +30,8 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
   name: 'enhanceDiagramWithLLMPrompt',
   input: {schema: EnhanceDiagramWithLLMInputSchema},
   output: {schema: EnhanceDiagramWithLLMOutputSchema},
-  model: 'googleai/gemini-2.5-flash-lite',
+  model: AI_MODELS.DIAGRAM_ENHANCEMENT.model,
+  config: AI_MODELS.DIAGRAM_ENHANCEMENT.config,
   prompt: `You are an expert in Mermaid diagrams targeting the Mermaid v10.9.1 Langium-based parser.
 
   The user will provide you with a Mermaid diagram code and a prompt describing desired enhancements.

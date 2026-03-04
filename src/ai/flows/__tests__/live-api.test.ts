@@ -1,10 +1,10 @@
 /**
  * @jest-environment node
  *
- * Live API integration tests for the Gemini-backed AI flows.
+ * Live API integration tests for the OpenAI GPT-5 Nano-backed AI flows.
  *
- * These tests call the real Gemini REST API and are therefore only executed
- * when the GEMINI_API_KEY environment variable is set AND the Gemini endpoint
+ * These tests call the real OpenAI REST API and are therefore only executed
+ * when the OPENAI_API_KEY environment variable is set AND the OpenAI endpoint
  * is reachable (e.g. in GitHub Actions CI, but NOT in sandboxed environments
  * with DNS restrictions).
  *
@@ -12,7 +12,7 @@
  * `https` module (and DNS resolution) works correctly.
  *
  * Because the genkit runtime uses ESM dependencies that Jest cannot natively
- * transform, these tests call the Gemini REST API directly via the Node.js
+ * transform, these tests call the OpenAI REST API directly via the Node.js
  * `https` module and use the same prompts defined in the flow source files.
  * The prompt-rules.test.ts suite separately validates that those prompts
  * contain the required syntax rules.
@@ -32,20 +32,18 @@ import * as dns from 'dns';
 import * as fs from 'fs';
 import * as path from 'path';
 import { validateMermaidSyntax } from '@/lib/mermaid-validator';
+import { ACTIVE_PROVIDER, AI_MODEL_NAME, AI_API_HOST, AI_API_KEY_ENV_VAR } from '@/ai/model-config';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
-const GEMINI_MODEL = 'gemini-2.5-flash-lite';
-const GEMINI_HOST = 'generativelanguage.googleapis.com';
+const API_KEY = process.env[AI_API_KEY_ENV_VAR] ?? '';
 
 /**
- * Resolve to true if GEMINI_API_KEY is set AND the Gemini API host is
- * reachable via DNS.  This allows the tests to self-skip in sandboxed
- * environments where outbound DNS is blocked.
+ * Resolve to true if the active provider's API key is set AND the API host is
+ * reachable via DNS.  Allows tests to self-skip in sandboxed environments.
  */
 async function isLiveApiAvailable(): Promise<boolean> {
-  if (!GEMINI_API_KEY) return false;
+  if (!API_KEY) return false;
   return new Promise((resolve) => {
-    dns.lookup(GEMINI_HOST, (err) => resolve(!err));
+    dns.lookup(AI_API_HOST, (err) => resolve(!err));
   });
 }
 
@@ -85,22 +83,70 @@ function interpolatePrompt(template: string, vars: Record<string, string>): stri
 }
 
 /**
- * POST a text prompt to the Gemini REST API via the Node.js `https` module.
+ * POST a text prompt to the OpenAI Chat Completions REST API.
+ * Returns the parsed structured JSON from the model's response.
+ */
+function callOpenAIHttps(prompt: string, responseSchema: object): Promise<Record<string, string>> {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      model: AI_MODEL_NAME,
+      reasoning: { effort: 'medium' },
+      messages: [{ role: 'user', content: prompt }],
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'output', strict: true, schema: responseSchema },
+      },
+    });
+
+    const options: https.RequestOptions = {
+      hostname: AI_API_HOST,
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'Authorization': `Bearer ${API_KEY}`,
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let raw = '';
+      res.on('data', (chunk) => { raw += chunk; });
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 400) {
+          reject(new Error(`OpenAI API error ${res.statusCode}: ${raw.slice(0, 500)}`));
+          return;
+        }
+        try {
+          const parsed = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
+          const text = parsed.choices?.[0]?.message?.content ?? '';
+          resolve(JSON.parse(text) as Record<string, string>);
+        } catch (e) {
+          reject(new Error(`Failed to parse OpenAI response: ${(e as Error).message}\nRaw: ${raw.slice(0, 500)}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+/**
+ * POST a text prompt to the Gemini REST API.
  * Returns the parsed structured JSON from the model's response.
  */
 function callGeminiHttps(prompt: string, responseSchema: object): Promise<Record<string, string>> {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema,
-      },
+      generationConfig: { responseMimeType: 'application/json', responseSchema },
     });
 
     const options: https.RequestOptions = {
-      hostname: GEMINI_HOST,
-      path: `/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      hostname: AI_API_HOST,
+      path: `/v1beta/models/${AI_MODEL_NAME}:generateContent?key=${API_KEY}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,21 +159,15 @@ function callGeminiHttps(prompt: string, responseSchema: object): Promise<Record
       res.on('data', (chunk) => { raw += chunk; });
       res.on('end', () => {
         if (res.statusCode && res.statusCode >= 400) {
-          reject(new Error(
-            `Gemini API error ${res.statusCode}: ${raw.slice(0, 500)}`
-          ));
+          reject(new Error(`Gemini API error ${res.statusCode}: ${raw.slice(0, 500)}`));
           return;
         }
         try {
-          const parsed = JSON.parse(raw) as {
-            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-          };
+          const parsed = JSON.parse(raw) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
           const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
           resolve(JSON.parse(text) as Record<string, string>);
         } catch (e) {
-          reject(new Error(
-            `Failed to parse Gemini response: ${(e as Error).message}\nRaw: ${raw.slice(0, 500)}`
-          ));
+          reject(new Error(`Failed to parse Gemini response: ${(e as Error).message}\nRaw: ${raw.slice(0, 500)}`));
         }
       });
     });
@@ -136,6 +176,13 @@ function callGeminiHttps(prompt: string, responseSchema: object): Promise<Record
     req.write(body);
     req.end();
   });
+}
+
+/** Dispatch to the correct provider's REST caller based on ACTIVE_PROVIDER. */
+function callModelHttps(prompt: string, responseSchema: object): Promise<Record<string, string>> {
+  return ACTIVE_PROVIDER === 'openai'
+    ? callOpenAIHttps(prompt, responseSchema)
+    : callGeminiHttps(prompt, responseSchema);
 }
 
 /**
@@ -249,7 +296,7 @@ const VALID_SEQUENCE = `sequenceDiagram
 
 // ─── fix-diagram-error suite ─────────────────────────────────────────────────
 
-describe('Live Gemini API — fix-diagram-error flow', () => {
+describe('Live AI API — fix-diagram-error flow', () => {
   jest.setTimeout(120_000);
 
   let skip = false;
@@ -274,7 +321,7 @@ describe('Live Gemini API — fix-diagram-error flow', () => {
       errorMessage,
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
 
     expect(typeof result.fixedCode).toBe('string');
     expect(result.fixedCode.length).toBeGreaterThan(0);
@@ -290,7 +337,7 @@ describe('Live Gemini API — fix-diagram-error flow', () => {
       errorMessage: 'Invalid Mermaid syntax.',
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     expect(fixedCode).toContain('sequenceDiagram');
@@ -304,7 +351,7 @@ describe('Live Gemini API — fix-diagram-error flow', () => {
       errorMessage: 'Invalid Mermaid syntax.',
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     expect(fixedCode).not.toMatch(/^```/m);
@@ -319,7 +366,7 @@ describe('Live Gemini API — fix-diagram-error flow', () => {
       errorMessage: "Line 3: Unclosed 'loop' block — matching 'end' is missing.",
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     const validation = validateMermaidSyntax(fixedCode);
@@ -330,7 +377,7 @@ describe('Live Gemini API — fix-diagram-error flow', () => {
 
 // ─── enhance-diagram-with-llm suite ──────────────────────────────────────────
 
-describe('Live Gemini API — enhance-diagram-with-llm flow', () => {
+describe('Live AI API — enhance-diagram-with-llm flow', () => {
   jest.setTimeout(120_000);
 
   let skip = false;
@@ -351,7 +398,7 @@ describe('Live Gemini API — enhance-diagram-with-llm flow', () => {
       enhancementPrompt: 'Add a third participant C that receives a message from B.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced.length).toBeGreaterThan(0);
@@ -366,7 +413,7 @@ describe('Live Gemini API — enhance-diagram-with-llm flow', () => {
       enhancementPrompt: 'Add a fourth participant D.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).not.toMatch(/^```/m);
@@ -392,7 +439,7 @@ describe('Live Gemini API — enhance-diagram-with-llm flow', () => {
       enhancementPrompt: enrichedEnhancementPrompt,
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).toContain('sequenceDiagram');
@@ -478,7 +525,7 @@ const IMBALANCED_ACTIVATION = `sequenceDiagram
 
 // ─── Extended fix-diagram-error edge cases ────────────────────────────────────
 
-describe('Live Gemini API — fix-diagram-error edge cases', () => {
+describe('Live AI API — fix-diagram-error edge cases', () => {
   jest.setTimeout(120_000);
 
   let skip = false;
@@ -501,7 +548,7 @@ describe('Live Gemini API — fix-diagram-error edge cases', () => {
         "Use plain text or standard straight quotes.",
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     expect(fixedCode).toContain('sequenceDiagram');
@@ -520,7 +567,7 @@ describe('Live Gemini API — fix-diagram-error edge cases', () => {
         'Use a short plain ID with \'as\', e.g.: participant AliceSmith as "Alice Smith".',
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     expect(fixedCode).toContain('sequenceDiagram');
@@ -538,7 +585,7 @@ describe('Live Gemini API — fix-diagram-error edge cases', () => {
         'Expected --> or --- between node definitions.',
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     expect(fixedCode).toMatch(/flowchart|graph/i);
@@ -560,7 +607,7 @@ describe('Live Gemini API — fix-diagram-error edge cases', () => {
       errorMessage,
     });
 
-    const result = await callGeminiHttps(prompt, FIX_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, FIX_RESPONSE_SCHEMA);
     const fixedCode = stripFences(result.fixedCode ?? '');
 
     expect(fixedCode).toContain('sequenceDiagram');
@@ -575,7 +622,7 @@ describe('Live Gemini API — fix-diagram-error edge cases', () => {
 
 // ─── Extended enhance-diagram-with-llm edge cases ────────────────────────────
 
-describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
+describe('Live AI API — enhance-diagram-with-llm edge cases', () => {
   jest.setTimeout(120_000);
 
   let skip = false;
@@ -596,7 +643,7 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
       enhancementPrompt: 'Add a third participant C that receives a message from B.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     // The original theme block must be preserved
@@ -613,7 +660,7 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
       enhancementPrompt: 'Add a DOCTOR entity that has a one-to-many relationship with APPOINTMENT.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).toContain('erDiagram');
@@ -630,7 +677,7 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
       enhancementPrompt: 'Add a follow-up step after the Walk-in clinic node.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).toMatch(/flowchart|graph/i);
@@ -649,7 +696,7 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
       enhancementPrompt: 'Add a legend note at the bottom.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).toMatch(/flowchart|graph/i);
@@ -667,7 +714,7 @@ describe('Live Gemini API — enhance-diagram-with-llm edge cases', () => {
       enhancementPrompt: 'Add a timeout branch after the failure branch.',
     });
 
-    const result = await callGeminiHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
+    const result = await callModelHttps(prompt, ENHANCE_RESPONSE_SCHEMA);
     const enhanced = stripFences(result.enhancedDiagramCode ?? '');
 
     expect(enhanced).toContain('sequenceDiagram');

@@ -18,5 +18,5 @@ cat > /workspaces/mermaid-vizualizer/.github/copilot-instructions.md << 'EOF'
 
 ## Required Secrets
 - GCP_SA_KEY
-- GEMINI_API_KEY
+- OPENAI_API_KEY
 EOF

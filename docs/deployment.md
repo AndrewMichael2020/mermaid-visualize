@@ -145,7 +145,7 @@ The application requires the following secrets in Secret Manager:
 
 | Secret Name | Description |
 |-------------|-------------|
-| `GEMINI_API_KEY` | Google AI (Gemini) API key |
+| `OPENAI_API_KEY` | OpenAI API key (GPT-5 Nano) |
 | `GOOGLE_CLIENT_ID` | OAuth2 client ID (GCP Console → APIs & Services → Credentials) |
 | `GOOGLE_CLIENT_SECRET` | OAuth2 client secret |
 | `NEXTAUTH_SECRET` | Random 32-char string for JWT signing (`openssl rand -base64 32`) |
@@ -155,7 +155,7 @@ The application requires the following secrets in Secret Manager:
 
 ```bash
 # Example for each secret:
-echo -n "your-api-key-value" | gcloud secrets create GEMINI_API_KEY \
+echo -n "your-api-key-value" | gcloud secrets create OPENAI_API_KEY \
   --data-file=- \
   --replication-policy="automatic"
 
@@ -179,7 +179,7 @@ Alternatively, use the provided script to upload secrets from a `.env.local` fil
 COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 # Grant access to each secret
-for SECRET in GEMINI_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET NEXTAUTH_SECRET NEXTAUTH_URL; do
+for SECRET in OPENAI_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET NEXTAUTH_SECRET NEXTAUTH_URL; do
   gcloud secrets add-iam-policy-binding $SECRET \
     --member="serviceAccount:${COMPUTE_SA}" \
     --role="roles/secretmanager.secretAccessor"
@@ -240,7 +240,7 @@ gcloud run deploy $SERVICE_NAME \
   --port 8080 \
   --memory 512Mi \
   --cpu 1 \
-  --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest" \
+  --update-secrets "OPENAI_API_KEY=OPENAI_API_KEY:latest" \
   --update-secrets "GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest" \
   --update-secrets "GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest" \
   --update-secrets "NEXTAUTH_SECRET=NEXTAUTH_SECRET:latest" \

@@ -10,7 +10,7 @@
 [![Deployed on Cloud Run](https://img.shields.io/badge/Cloud_Run-deployed-4285F4?logo=google-cloud&logoColor=white)](https://mermaid-vizualizer-536375482650.us-central1.run.app)
 [![GCP Secret Manager](https://img.shields.io/badge/Secrets-GCP_Secret_Manager-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/secret-manager)
 [![Docker](https://img.shields.io/badge/Docker-containerised-2496ED?logo=docker&logoColor=white)](./Dockerfile)
-[![AI Powered](https://img.shields.io/badge/AI-Google_Gemini-8E44FF?logo=google&logoColor=white)](https://ai.google.dev)
+[![AI Powered](https://img.shields.io/badge/AI-OpenAI_GPT--5_Nano-412991?logo=openai&logoColor=white)](https://openai.com)
 [![Genkit](https://img.shields.io/badge/Genkit-AI_framework-FF6F00?logo=firebase&logoColor=white)](https://firebase.google.com/docs/genkit)
 
 [![Tests](https://img.shields.io/badge/tests-32_passing-brightgreen?logo=jest&logoColor=white)](./jest.config.js)
@@ -45,7 +45,7 @@ Most diagramming tools require you to learn their interface before you can creat
 
 | | |
 |---|---|
-| 🤖 **AI Generation** | Describe your diagram in plain language — Gemini AI writes the code |
+| 🤖 **AI Generation** | Describe your diagram in plain language — GPT-5 Nano writes the code |
 | ✨ **AI Enhancement** | Ask AI to improve, extend, or restructure any existing diagram |
 | 👁️ **Live Preview** | See your diagram update in real time as you type |
 | 🌙 **Light / Dark themes** | Switch rendering themes for presentations or docs |
@@ -76,7 +76,7 @@ npm install
 
 Create `.env.local`:
 ```env
-GEMINI_API_KEY=your-gemini-api-key
+OPENAI_API_KEY=your-openai-api-key
 GOOGLE_CLIENT_ID=your-oauth2-client-id
 GOOGLE_CLIENT_SECRET=your-oauth2-client-secret
 NEXTAUTH_SECRET=any-random-32-char-string
@@ -93,7 +93,7 @@ npm run genkit:dev # AI server (separate terminal)
 | Layer | Technology |
 |---|---|
 | Framework | Next.js 15, React 19 |
-| AI | Google Gemini 2.5 Flash (via Genkit) |
+| AI | OpenAI GPT-5 Nano (via Genkit + `@genkit-ai/compat-oai`) |
 | Auth | next-auth + Google OAuth2 |
 | Logging | Google Cloud Datastore |
 | Metrics | prom-client + Cloud Monitoring |
@@ -124,5 +124,5 @@ MIT — see [LICENSE](./LICENSE)
 ## Acknowledgements
 
 - [Mermaid.js](https://mermaid.js.org) — diagram rendering engine
-- [Google Gemini](https://ai.google.dev) — AI model
+- [OpenAI GPT-5 Nano](https://openai.com) — AI model
 - [Next.js](https://nextjs.org) · [Tailwind CSS](https://tailwindcss.com) · [shadcn/ui](https://ui.shadcn.com)

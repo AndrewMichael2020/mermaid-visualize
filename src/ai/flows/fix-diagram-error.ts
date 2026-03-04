@@ -8,6 +8,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {AI_MODELS} from '@/ai/model-config';
 
 const FixDiagramErrorInputSchema = z.object({
   diagramCode: z.string().describe('The Mermaid diagram code that failed to render.'),
@@ -29,7 +30,8 @@ const fixDiagramErrorPrompt = ai.definePrompt({
   name: 'fixDiagramErrorPrompt',
   input: {schema: FixDiagramErrorInputSchema},
   output: {schema: FixDiagramErrorOutputSchema},
-  model: 'googleai/gemini-2.5-flash-lite',
+  model: AI_MODELS.DIAGRAM_FIX.model,
+  config: AI_MODELS.DIAGRAM_FIX.config,
   prompt: `You are an expert Mermaid diagram debugger targeting the Mermaid v10.9.1 Langium-based parser. A diagram has failed to parse or render.
 
 Your task:
