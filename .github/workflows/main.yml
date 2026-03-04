@@ -85,6 +85,7 @@ jobs:
           "
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   deploy:
     name: Deploy to Cloud Run
@@ -141,6 +142,12 @@ jobs:
           else
             echo "All runtime secrets resolved."
           fi
+          # openai-api-key uses a different GCP secret name (dashes) — check it explicitly
+          if ! gcloud secrets describe "openai-api-key" --project "$PROJECT" >/dev/null 2>&1; then
+            echo "::warning::Missing GCP secret: openai-api-key (needed for OPENAI_API_KEY)"
+          else
+            echo "GCP secret present: openai-api-key"
+          fi
       - name: Configure Docker for GCR
         run: |
           set -euo pipefail
@@ -172,6 +179,8 @@ jobs:
             s=$(echo "$s" | xargs); [ -z "$s" ] && continue
             secret_args+=("--update-secrets" "$s=$s:latest")
           done
+          # openai-api-key GCP secret name differs from the env var name
+          secret_args+=("--update-secrets" "OPENAI_API_KEY=openai-api-key:latest")
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" \
             --region "$DEFAULT_REGION" \

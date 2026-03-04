@@ -19,8 +19,7 @@ export interface ModelConfig {
   /** Genkit model reference string (plugin-prefixed). */
   model: string;
   /** Extra config forwarded to the model (provider-specific). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   /** Raw model name for direct REST calls (live-api tests). */
   apiModelName: string;
   /** API hostname for direct REST calls. */
