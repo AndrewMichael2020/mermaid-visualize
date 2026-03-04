@@ -88,6 +88,10 @@ MERMAID v10.9.1 COMMON FIXES to apply while correcting:
 - In sequence diagrams, balance activate/deactivate on EVERY branch path: a deactivate in one alt/else branch does NOT automatically deactivate in sibling branches — each branch is evaluated independently from the state that existed when the alt/opt block opened, so every branch must handle its own activate/deactivate lifecycle; participants left active in any branch remain active after the block closes
 - Do not mix shorthand arrow activation (->+ / ->-) with explicit activate/deactivate statements in the same diagram; prefer explicit forms for complex scopes
 - Do not use curly/smart quotes in any label; use only standard straight apostrophes ' if needed
+- STYLE KEYWORD SCOPE: The 'style' keyword (e.g., "style NodeA fill:#F00") is ONLY valid in flowchart/graph diagrams.
+  If the broken diagram uses 'style' lines in a sequenceDiagram, erDiagram, classDiagram, stateDiagram, gantt,
+  timeline, mindmap, pie, gitGraph, or journey — REMOVE those style lines. Replace them with a %%{init: ...}%%
+  directive using theme: base and themeVariables (e.g., "primaryColor" for entity/node fill color).
 
 Broken diagram code:
 {{{diagramCode}}}

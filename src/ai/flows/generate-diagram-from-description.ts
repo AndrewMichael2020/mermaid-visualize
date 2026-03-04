@@ -88,9 +88,12 @@ const prompt = ai.definePrompt({
      wrap the label in double quotes.
      Example: A["Node with (parentheses)"] --> B["Another Node"]
 
-  6. THEMING AND COLORS: For all diagram types EXCEPT erDiagram (ER diagrams), include a theme initialization
-     block at the very beginning of the code with colorful styling.
-     
+  6. STYLE KEYWORD SCOPE — CRITICAL: The 'style' keyword (e.g., "style NodeA fill:#F00") is ONLY valid inside
+     flowchart/graph diagrams. It is NOT supported in sequenceDiagram, erDiagram, classDiagram, stateDiagram,
+     gantt, timeline, mindmap, pie, gitGraph, journey, or any other type. Never output 'style' lines for these types.
+
+  7. THEMING AND COLORS: Include a %%{init: ...}%% block at the very beginning of ALL diagram types.
+
      For flowchart/graph, classDiagram, stateDiagram use:
      %%{init: {
        "theme": "base",
@@ -108,7 +111,7 @@ const prompt = ai.definePrompt({
          "fontFamily": "Inter, sans-serif"
        }
      }}%%
-     
+
      For sequenceDiagram use:
      %%{init: {
        "theme": "base",
@@ -128,10 +131,19 @@ const prompt = ai.definePrompt({
          "fontFamily": "Inter, sans-serif"
        }
      }}%%
-     
+
+     For erDiagram use (colors apply globally to all entities — individual entity colors are not supported):
+     %%{init: {
+       "theme": "base",
+       "themeVariables": {
+         "primaryColor": "#E6F7FF",
+         "primaryBorderColor": "#0A84C1",
+         "lineColor": "#0A84C1",
+         "fontFamily": "Inter, sans-serif"
+       }
+     }}%%
+
      For other diagram types (timeline, gantt, gitGraph, journey, mindmap, pie), use the flowchart themeVariables format as a base.
-      
-  7. For erDiagram (ER diagrams), do NOT include any theme initialization block. Keep the code clean without styling.
 
   Description: {{{description}}}`,
 });

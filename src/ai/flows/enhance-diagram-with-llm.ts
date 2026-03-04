@@ -92,9 +92,13 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
      statements in the same diagram; prefer the explicit form for complex scopes.
 
   THEMING GUIDELINES:
-  6. If the original diagram code contains a theme initialization block (%%{init: {...}}%%), PRESERVE it in your output.
-  7. If the original diagram does NOT have a theme block and the diagram type is NOT erDiagram (ER diagrams), ADD a theme initialization block at the beginning.
-     
+  6. STYLE KEYWORD SCOPE — CRITICAL: The 'style' keyword (e.g., "style NodeA fill:#F00") is ONLY valid inside
+     flowchart/graph diagrams. It is NOT supported in sequenceDiagram, erDiagram, classDiagram, stateDiagram,
+     gantt, timeline, mindmap, pie, gitGraph, journey, or any other type. If the input diagram uses 'style'
+     lines outside of a flowchart/graph, REMOVE them and use a %%{init: ...}%% directive instead.
+  7. If the original diagram code contains a theme initialization block (%%{init: {...}}%%), PRESERVE it in your output.
+  8. If the original diagram does NOT have a theme block, ADD a %%{init: ...}%% block at the very beginning.
+
      For flowchart/graph, classDiagram, stateDiagram use:
      %%{init: {
        "theme": "base",
@@ -112,7 +116,7 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
          "fontFamily": "Inter, sans-serif"
        }
      }}%%
-     
+
      For sequenceDiagram use:
      %%{init: {
        "theme": "base",
@@ -132,11 +136,22 @@ const enhanceDiagramWithLLMPrompt = ai.definePrompt({
          "fontFamily": "Inter, sans-serif"
        }
      }}%%
-     
+
+     For erDiagram use (colors apply globally to all entities — individual entity colors are not supported):
+     %%{init: {
+       "theme": "base",
+       "themeVariables": {
+         "primaryColor": "#E6F7FF",
+         "primaryBorderColor": "#0A84C1",
+         "lineColor": "#0A84C1",
+         "fontFamily": "Inter, sans-serif"
+       }
+     }}%%
+
      For other diagram types (timeline, gantt, gitGraph, journey, mindmap, pie), use the flowchart themeVariables format as a base.
-     
-  8. For erDiagram (ER diagrams), do NOT add or modify any theme blocks. Keep the code clean without styling.
+
   9. If the user specifically requests color or theme changes, update the themeVariables accordingly.
+     For erDiagram, set "primaryColor" to the requested hex value — individual entity colors are not possible.
   10. You MAY also use classDef and class styling for flowcharts when appropriate.
 
   Original Diagram Code:

@@ -53,7 +53,7 @@ const MODEL_REGISTRY: Record<Provider, ModelConfig> = {
 };
 
 // ─── CHANGE THIS ONE LINE TO SWITCH MODELS EVERYWHERE ────────────────────────
-export const ACTIVE_PROVIDER: Provider = 'openai';
+export const ACTIVE_PROVIDER: Provider = 'googleai';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ACTIVE_MODEL_CONFIG: ModelConfig = MODEL_REGISTRY[ACTIVE_PROVIDER];
