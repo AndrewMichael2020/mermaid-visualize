@@ -5,7 +5,7 @@
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │  SWITCH ACTIVE MODEL HERE — one line changes every flow + live tests    │
- * │  'openai'   → GPT-5 Nano  (reasoning: medium effort)                   │
+ * │  'openai'   → GPT-5 Nano                                                  │
  * │  'googleai' → Gemini 2.5 Flash                                          │
  * └─────────────────────────────────────────────────────────────────────────┘
  */
@@ -36,7 +36,7 @@ export interface ModelConfig {
 const MODEL_REGISTRY: Record<Provider, ModelConfig> = {
   openai: {
     model: 'openai/gpt-5-nano',
-    config: { reasoning: { effort: 'medium' } },
+    config: { reasoning_effort: 'medium' },
     apiModelName: 'gpt-5-nano',
     apiHost: 'api.openai.com',
     apiKeyEnvVar: 'OPENAI_API_KEY',

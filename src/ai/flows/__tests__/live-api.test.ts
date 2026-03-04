@@ -90,7 +90,7 @@ function callOpenAIHttps(prompt: string, responseSchema: object): Promise<Record
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: AI_MODEL_NAME,
-      reasoning: { effort: 'medium' },
+      reasoning_effort: 'medium',
       messages: [{ role: 'user', content: prompt }],
       response_format: {
         type: 'json_schema',
