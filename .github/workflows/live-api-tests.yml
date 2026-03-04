@@ -33,7 +33,7 @@ jobs:
             printf '### 🤖 Live AI Model Tests\n**Status:** API key not configured — skipped.\n✅ Treated as passing.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          npx jest --ci --no-coverage --testPathPatterns=live-api --forceExit --runInBand --testTimeout=8000 --outputFile=/tmp/live-results.json || true
+          npx jest --ci --no-coverage --testPathPatterns=live-api --forceExit --runInBand --testTimeout=8000 --json --outputFile=/tmp/live-results.json || true
           node -e "
             const fs = require('fs');
             try {
